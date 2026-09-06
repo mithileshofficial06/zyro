@@ -1,0 +1,362 @@
+/*
+ * Zyro console — brutalist.
+ *
+ * The constraints, so later additions do not quietly soften them:
+ *
+ *   - No border radius. Anywhere. A rounded corner reads as a different design
+ *     language and one is enough to break the whole page.
+ *   - No blur, no gradient fills, no soft shadow. Shadows are hard offsets in
+ *     flat colour; they read as physical displacement, not as depth.
+ *   - Borders are structural, not decorative. Everything sits inside a visible
+ *     frame, and the frame is heavy enough to be a shape in its own right.
+ *   - Type is uppercase and tight for labels, monospace for every number.
+ *
+ * On the numbers specifically: these are prices and balances that get compared
+ * against each other, column by column. `font-variant-numeric: tabular-nums`
+ * is not a nicety here — proportional digits make two nearly-identical WAD
+ * values look different lengths, which is exactly the comparison the page
+ * exists to make legible.
+ */
+
+:root {
+  /* Ground. Not #000: a true black makes the maroon read as brown and gives
+     the hard shadows nothing to sit against. */
+  --black: #0a0908;
+  --black-raised: #141210;
+  --black-sunken: #050404;
+
+  /* Maroon, the only hue on the page. Three stops: the brand, a lit state, and
+     a recessed one for fills behind text. */
+  --maroon: #7b1e28;
+  --maroon-lit: #a82b38;
+  --maroon-deep: #3d0f17;
+
+  /* Letters. Warm off-white rather than #fff — pure white on near-black
+     vibrates at small sizes, and every number here is small. */
+  --white: #f5f2ed;
+  --white-pure: #ffffff;
+  --white-dim: #9d968c;
+
+  --line: #2a2724;
+  --line-strong: var(--white);
+
+  /* Semantic, used only by the verification panel. Deliberately not a green /
+     red pair from a UI kit — these are maroon-family so a passing check does
+     not introduce a second hue into the design. */
+  --ok: #d8cfc2;
+  --fail: var(--maroon-lit);
+
+  --border-width: 2px;
+  --border-heavy: 4px;
+  --shadow-offset: 6px;
+
+  --font-display: "Archivo Black", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Consolas", "Liberation Mono", monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The page ground is not flat. A faint maroon rule grid puts the content on
+   graph paper, which is what the content actually is. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, rgba(123, 30, 40, 0.11) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(123, 30, 40, 0.11) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+a {
+  color: var(--white);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--maroon-lit);
+}
+
+a:hover {
+  background: var(--maroon);
+  text-decoration-color: var(--white);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Type                                                                      */
+/* ------------------------------------------------------------------------ */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 0.95;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+}
+
+h2 {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  letter-spacing: 0.01em;
+}
+
+h3 {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--white-dim);
+  display: block;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.dim {
+  color: var(--white-dim);
+}
+
+.maroon-text {
+  color: var(--maroon-lit);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Structure                                                                 */
+/* ------------------------------------------------------------------------ */
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px 96px;
+}
+
+/* The default container. A heavy white frame on the raised ground, displaced
+   by a flat maroon shadow. */
+.panel {
+  border: var(--border-width) solid var(--line-strong);
+  background: var(--black-raised);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--maroon);
+  padding: 20px;
+}
+
+.panel--flat {
+  box-shadow: none;
+}
+
+.panel--maroon {
+  background: var(--maroon-deep);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--black-sunken);
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: var(--border-width) solid var(--line-strong);
+  margin: -20px -20px 18px;
+  padding: 12px 20px;
+  background: var(--black-sunken);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+@media (min-width: 900px) {
+  .grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Controls                                                                  */
+/* ------------------------------------------------------------------------ */
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 9px 16px;
+  border: var(--border-width) solid var(--white);
+  background: var(--black);
+  color: var(--white);
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--maroon);
+  transition: transform 60ms linear, box-shadow 60ms linear;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--maroon);
+}
+
+/* Pressing moves the element onto its own shadow. Nothing fades. */
+.btn:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--maroon);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+.btn--active {
+  background: var(--maroon);
+  box-shadow: 4px 4px 0 var(--white);
+}
+
+.tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  border: 2px solid currentColor;
+  white-space: nowrap;
+}
+
+.tag--live {
+  color: var(--white);
+  background: var(--maroon);
+  border-color: var(--white);
+}
+
+.tag--idle {
+  color: var(--white-dim);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Tables                                                                    */
+/* ------------------------------------------------------------------------ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.62rem;
+  font-weight: 400;
+  color: var(--white-dim);
+  border-bottom: var(--border-width) solid var(--line-strong);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+tbody tr:hover td {
+  background: var(--maroon-deep);
+}
+
+td.num,
+th.num {
+  text-align: right;
+}
+
+/* Wide tables scroll inside their own frame rather than pushing the page. */
+.scroll-x {
+  overflow-x: auto;
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Utility                                                                   */
+/* ------------------------------------------------------------------------ */
+
+.hr {
+  border: 0;
+  border-top: var(--border-width) solid var(--line-strong);
+  margin: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  display: block;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

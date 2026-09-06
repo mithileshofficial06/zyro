@@ -174,6 +174,20 @@ contract ZyroLensTest is ZyroTestBase {
         assertEq(s.reservationPriceWad, s.midWad, "and with it the skew");
     }
 
+    /// @dev `apps/console/lib/lens.ts` encodes this call by hand rather than
+    ///      pulling in an ABI codec, which means it carries a literal selector.
+    ///      A literal that has fallen out of step with the signature does not
+    ///      fail loudly — the call reverts with no data, which is
+    ///      indistinguishable from a reverted view and sends the reader to the
+    ///      wrong contract entirely. So it is pinned here.
+    function test_StateSelector_MatchesTheConsole() public pure {
+        assertEq(
+            bytes4(keccak256("state(address,address,bytes32,address,address,bytes)")),
+            bytes4(0xc19f2196),
+            "STATE_SELECTOR in apps/console/lib/lens.ts must be updated to match"
+        );
+    }
+
     // =====================================================================
     // Against the real Aqua
     // =====================================================================
