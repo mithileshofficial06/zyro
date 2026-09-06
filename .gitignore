@@ -4,9 +4,11 @@ contracts/cache/
 contracts/broadcast/*/dry-run/
 contracts/.env
 
-# Solidity deps resolved via npm (swap-vm / aqua) and forge (v4, OZ)
+# swap-vm / aqua resolve their Solidity deps via npm into node_modules,
+# referenced by remappings.txt — not via forge submodules (spec §15).
+# contracts/lib/ is NOT ignored: those are git submodules pinned to exact
+# commits, and CI checks them out with submodules:recursive.
 node_modules/
-contracts/lib/
 contracts/node_modules/
 
 # TypeScript / JS
