@@ -1,8 +1,37 @@
 # Zyro Substreams
 
 A Substreams package that decodes 1inch Aqua's position lifecycle and the Zyro
-router's fills, and emits `EntityChanges` so the **same schema** as the
-AssemblyScript subgraph can be served by a Substreams-powered subgraph.
+router's fills, and emits `EntityChanges` toward the same schema the
+AssemblyScript subgraph serves.
+
+> ## Status: decoder complete, projection incomplete
+>
+> **`graph_out` cannot currently serve `subgraph/schema.graphql`, and a
+> Substreams-powered subgraph deployed against it would fail on the first
+> `Shipped`.** Stated here rather than discovered at deploy time.
+>
+> `map_events` is finished: it decodes every event, walks the program, and
+> extracts the Zyro parameters, with the byte-level reasoning covered by unit
+> tests in `src/program.rs`.
+>
+> `graph_out` is not. It is a stateless map over a single block, and these
+> fields are non-nullable in the schema and cumulative by nature:
+>
+> | Entity | Fields it cannot fill |
+> |---|---|
+> | `Position` | `tokens`, `inventoryImbalanceWad`, `midWad`, `reservationPriceWad`, `halfSpreadWad`, `penaltyBps`, `horizonRemainingSecs` |
+> | `PositionBalance` | `amount` |
+> | `Fill` | `midWadAtFill`, `reservationPriceWadAtFill`, `inventoryImbalanceWadAtFill`, `exposed` |
+>
+> Every one of them is derived from a running balance, and a balance is the sum
+> of every `Pushed`/`Pulled` since the position shipped. Producing them needs
+> `store` modules plus a fourth port of the Avellaneda–Stoikov kernel, in Rust.
+>
+> The AssemblyScript subgraph is the path that satisfies the track; this package
+> is differentiation, and half-built differentiation described as finished is
+> worse than none. See [docs/EVENT-ORDER.md](../docs/EVENT-ORDER.md) for what
+> the same schema's ordering constraints turned out to be — any Rust port has
+> to honour them too.
 
 Built following [`streamingfast/substreams-skills`](https://github.com/streamingfast/substreams-skills)
 (`substreams-dev`, `substreams-ethereum`).
@@ -12,7 +41,7 @@ Built following [`streamingfast/substreams-skills`](https://github.com/streaming
 | Module | Kind | Output |
 |---|---|---|
 | `map_events` | map | `zyro.v1.Events` — one typed message per decoded event |
-| `graph_out` | map | `sf.substreams.sink.entity.v1.EntityChanges` |
+| `graph_out` | map | `sf.substreams.sink.entity.v1.EntityChanges` — partial, see Status |
 
 ## Build
 

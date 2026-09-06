@@ -115,3 +115,52 @@ jobs:
       - name: Build
         working-directory: subgraph
         run: npm run build
+
+  substreams:
+    name: substreams
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The crate's build scripts pull in host-only dependencies that need
+      # binutils, so it cannot be compiled on a Windows dev machine without a
+      # gnu toolchain. Linux CI is the only place this is checked at all.
+      - name: Install Rust with the wasm target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: substreams
+
+      - name: Unit tests
+        working-directory: substreams
+        run: cargo test --lib
+
+      - name: Build the wasm module
+        working-directory: substreams
+        run: cargo build --target wasm32-unknown-unknown --release
+
+  console:
+    name: console
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        working-directory: apps/console
+        run: npm install --no-audit --no-fund
+
+      # Builds with no SUBGRAPH_URL and no deployment record on purpose. Those
+      # are states a live console has to render — an unconfigured one at first
+      # run, an unreachable one when an endpoint goes down — and a build that
+      # only passes when they are set would fail exactly when someone is
+      # watching.
+      - name: Build
+        working-directory: apps/console
+        run: npx next build
