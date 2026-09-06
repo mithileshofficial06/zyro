@@ -41,3 +41,5 @@ Thumbs.db
 subgraph/generated/
 subgraph/build/
 subgraph/node_modules/
+subgraph/tests/.latest.json
+subgraph/tests/.latest.json
