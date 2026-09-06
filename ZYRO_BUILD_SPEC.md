@@ -661,6 +661,25 @@ current reservation price directly.
 > drain it when the position is created. And ⚠ **VERIFY** that `Pushed`/
 > `Pulled` also fire at swap settlement — confirm this against the real
 > on-chain transaction from §25 Phase 4 before trusting it.
+>
+> **✅ RESOLVED — and both halves of this paragraph were wrong. See
+> [docs/EVENT-ORDER.md](docs/EVENT-ORDER.md).**
+>
+> Settled against the vendored source rather than a testnet run, which also
+> answered the half that was not flagged.
+>
+> `Pushed`/`Pulled` **do** fire at settlement — but *before* `Swapped`, not
+> after, because `SwapVM._swap` settles and then emits. So `handleSwapped`
+> reading the store for "pre-fill" state got post-fill balances, and CORRECTION
+> 7's prescribed fix does not work: another handler has already mutated them.
+> The pre-fill state is reconstructed by undoing the fill's own deltas instead.
+>
+> And `ship()` emits `Shipped` **first**, then one `Pushed` per token from the
+> funding loop below it — the reverse of what this paragraph says. The
+> `PendingPush` buffer can therefore never fire (`push()` reverts on an
+> unshipped strategy), so the position was never priced at ship and published a
+> mid of zero until something traded against it. The price is now published from
+> `handlePushed`/`handlePulled`, where the funding actually lands.
 
 > **⚠ CORRECTION 7 — `midWadAtFill` is captured too late.**
 > The previous build wrote `fill.midWadAtFill` *after* mutating balances
@@ -678,6 +697,13 @@ Other essentials:
 - Decode Aqua's `Shipped.strategy` blob with
   `ethereum.decode("(address,uint256,bytes)", …)`; `order.data` is
   `tokenA(20) ++ tokenB(20) ++ program`.
+  **✅ CORRECTED:** `order.data` is `hooksData ++ program`, with no token
+  prefix — 1inch's own `MakerTraitsLib.build` shows it, and the program's start
+  is recorded in bits [208, 224) of the traits word. Slicing at a fixed 40
+  would read 38 bytes of the Zyro instruction's arguments as two addresses and
+  then mis-parse the rest, silently, since the walk would still find plausible
+  opcode/length pairs. Checked against a real `abi.encode(order)` in
+  `subgraph/tests/program.test.ts`.
 - Filter by app address — Aqua's `Shipped` fires for every app built on it.
 
 Wire `subgraph/mcp/mcp.config.json` to The Graph's official Subgraph MCP
