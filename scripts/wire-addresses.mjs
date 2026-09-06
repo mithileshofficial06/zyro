@@ -232,8 +232,14 @@ for (const w of writes) {
   console.log(`wrote ${w.relativePath}`);
 }
 
+// `graph build --network <name>` is what substitutes these addresses into
+// subgraph.yaml. Building without it leaves the manifest's placeholder zeros
+// in place and deploys a subgraph watching address(0) — which indexes nothing,
+// reports no error, and looks exactly like a stale ZYRO_APP.
 console.log(`
 Next:
-  cd subgraph && npm run codegen && npm run build
-  npx graph deploy --studio <your-subgraph-slug>
+  cd subgraph
+  npm run codegen
+  npm run build            # graph build --network ${network}
+  npx graph deploy <your-subgraph-slug> --network ${network}
 `);

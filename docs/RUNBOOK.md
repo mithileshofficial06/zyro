@@ -99,9 +99,18 @@ cd subgraph
 npx graph auth <deploy key from Studio>
 
 npm run codegen
-npm run build
-npx graph deploy zyro
+npm run build                                  # graph build --network base-sepolia
+npx graph deploy zyro --network base-sepolia
 ```
+
+**`--network base-sepolia` is what substitutes the addresses.** It is baked
+into `npm run build` so it cannot be forgotten, but if you invoke `graph build`
+directly, leaving it off keeps `subgraph.yaml`'s placeholder zeros and deploys
+a subgraph watching `address(0)` — which indexes nothing, reports no error, and
+is indistinguishable from a stale `ZYRO_APP`.
+
+(`graph-cli` 0.97 has no `--studio` flag; `graph auth <key>` and
+`graph deploy <name>` are the current forms.)
 
 Watch the sync. Studio shows indexing errors; the console shows them too.
 

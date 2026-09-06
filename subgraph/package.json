@@ -6,11 +6,11 @@
   "scripts": {
     "fixtures": "node scripts/generate-fixtures.mjs",
     "codegen": "graph codegen",
-    "build": "graph build",
+    "build": "graph build --network base-sepolia",
     "test": "graph test",
     "check": "npm run fixtures && npm run codegen && npm run build",
-    "deploy": "graph deploy --studio zyro",
-    "auth": "graph auth --studio"
+    "deploy": "graph deploy zyro --network base-sepolia",
+    "auth": "graph auth"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.97.1",
