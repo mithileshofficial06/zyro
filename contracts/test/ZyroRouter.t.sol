@@ -95,7 +95,9 @@ contract ZyroRouterTest is ZyroTestBase {
     ///      so the stock router panics on it. That is precisely what makes it a
     ///      free index to claim.
     function test_ZyroOpcode_RevertsOnStockRouter() public {
-        bytes memory program = _zyroProgram(0.1e18, 0.1e18, 0, 1_000e18, 500e18, 1 days, uint40(block.timestamp));
+        bytes memory program = _zyroProgram(
+            GAMMA_WAD, SIGMA_SQ_WAD, BASE_SPREAD_WAD, 1_000e18, 500e18, HORIZON, uint40(block.timestamp)
+        );
         ISwapVM.Order memory order = _order(program);
         bytes memory takerData = _takerData(true);
 
@@ -108,7 +110,9 @@ contract ZyroRouterTest is ZyroTestBase {
     }
 
     function test_ZyroOpcode_ExecutesOnZyroRouter() public {
-        bytes memory program = _zyroProgram(0.1e18, 0.1e18, 0, 1_000e18, 500e18, 1 days, uint40(block.timestamp));
+        bytes memory program = _zyroProgram(
+            GAMMA_WAD, SIGMA_SQ_WAD, BASE_SPREAD_WAD, 1_000e18, 500e18, HORIZON, uint40(block.timestamp)
+        );
         ISwapVM.Order memory order = _order(program);
         bytes memory takerData = _takerData(true);
 
@@ -173,7 +177,15 @@ contract ZyroRouterTest is ZyroTestBase {
 
         // Target far below the live balance => q > 0 => exposed.
         ISwapVM.Order memory zyroOrder = _order(
-            _zyroProgram(0.5e18, 0.2e18, 0, int256(BAL_IN / 2), int256(BAL_IN), 1 days, uint40(block.timestamp))
+            _zyroProgram(
+                GAMMA_WAD,
+                SIGMA_SQ_WAD,
+                BASE_SPREAD_WAD,
+                int256(BAL_IN / 2),
+                int256(BAL_IN),
+                HORIZON,
+                uint40(block.timestamp)
+            )
         );
         _seedInventory(address(zyroRouter), zyroRouter.hash(zyroOrder), BAL_IN, BAL_OUT);
 
@@ -199,7 +211,15 @@ contract ZyroRouterTest is ZyroTestBase {
 
         // Target far above the live balance => q < 0 => covered.
         ISwapVM.Order memory zyroOrder = _order(
-            _zyroProgram(0.5e18, 0.2e18, 0, int256(BAL_IN * 2), int256(BAL_IN), 1 days, uint40(block.timestamp))
+            _zyroProgram(
+                GAMMA_WAD,
+                SIGMA_SQ_WAD,
+                BASE_SPREAD_WAD,
+                int256(BAL_IN * 2),
+                int256(BAL_IN),
+                HORIZON,
+                uint40(block.timestamp)
+            )
         );
         _seedInventory(address(zyroRouter), zyroRouter.hash(zyroOrder), BAL_IN, BAL_OUT);
 
@@ -217,8 +237,9 @@ contract ZyroRouterTest is ZyroTestBase {
     /// @dev The kernel's guard has to be wired into `exec`, not merely to exist.
     ///      Without this, a missing `validate()` call is invisible.
     function test_NegativeGammaInProgram_Reverts() public {
-        bytes memory program =
-            _zyroProgram(-1, 0.1e18, 0, int256(BAL_IN), 0, 1 days, uint40(block.timestamp));
+        bytes memory program = _zyroProgram(
+            -1, SIGMA_SQ_WAD, BASE_SPREAD_WAD, int256(BAL_IN), 0, HORIZON, uint40(block.timestamp)
+        );
         ISwapVM.Order memory order = _order(program);
         bytes memory takerData = _takerData(true);
 
@@ -231,7 +252,13 @@ contract ZyroRouterTest is ZyroTestBase {
 
     function test_FutureStartTimestamp_Reverts() public {
         bytes memory program = _zyroProgram(
-            0.1e18, 0.1e18, 0, int256(BAL_IN), 0, 1 days, uint40(block.timestamp + 1)
+            GAMMA_WAD,
+            SIGMA_SQ_WAD,
+            BASE_SPREAD_WAD,
+            int256(BAL_IN),
+            0,
+            HORIZON,
+            uint40(block.timestamp + 1)
         );
         ISwapVM.Order memory order = _order(program);
         bytes memory takerData = _takerData(true);

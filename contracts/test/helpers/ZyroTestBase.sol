@@ -126,6 +126,31 @@ abstract contract ZyroTestBase is Test {
     /// @dev The next free index after the stock set's 34 entries.
     uint8 internal constant OP_ZYRO = 34;
 
+    // ---------------------------------------------------------------------
+    // Realistic parameter calibration
+    //
+    // The skew term is `q * gamma * sigmaSq * (T-t) / WAD^2`, where `q` is a
+    // wei-scaled token amount and `(T-t)` is a raw second count. Both are large
+    // numbers, so `gamma * sigmaSq` has to be *small* for the skew to land as a
+    // sensible fraction of the mid.
+    //
+    // Worked example, at the fixtures below: holding 500 tokens away from
+    // target over a one-hour horizon,
+    //
+    //     skew = 500 * (1e-4 * 5e-5) * 3600 = 0.009
+    //
+    // against a mid of 2.0 — about 0.45%. Plausible for a maker defending an
+    // inventory position.
+    //
+    // Picking round-looking values like `gamma = 0.5e18` instead makes the skew
+    // ~1e6 times the mid, the effective price clamps to 1, and every assertion
+    // about "exposed quotes worse" passes for the wrong reason. Tests that only
+    // ever exercise the clamp are not testing the mechanism.
+    int128 internal constant GAMMA_WAD = 1e14; // 1e-4
+    int128 internal constant SIGMA_SQ_WAD = 5e13; // 5e-5
+    int128 internal constant BASE_SPREAD_WAD = 1e15; // 0.001 absolute, ~0.05% of a mid of 2
+    uint32 internal constant HORIZON = 1 hours;
+
     MockAqua internal aqua;
     TestToken internal tokenIn;
     TestToken internal tokenOut;
@@ -223,6 +248,12 @@ abstract contract ZyroTestBase is Test {
     }
 
     /// @dev Funds and approves so a real `swap()` can settle.
+    ///
+    ///      Both sides are funded far beyond any amount a test trades, so that
+    ///      a revert during settlement means the *strategy* could not pay —
+    ///      never that the fixture ran dry. On the exact-output path in
+    ///      particular, `amountIn` is derived by the curve and can be much
+    ///      larger than the amount the test asked for.
     function _fundForSwap(address router, uint256 takerAmount, uint256 makerAmount) internal {
         tokenIn.mint(taker, takerAmount);
         tokenOut.mint(maker, makerAmount);
