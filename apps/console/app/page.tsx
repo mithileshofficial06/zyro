@@ -4,7 +4,7 @@ import {CountUp, Marquee, PressPanel, Reveal, Stagger, StaggerItem} from "@/comp
 import {InventoryTrack, PriceSeries} from "@/components/PriceSeries";
 import {Section} from "@/components/Section";
 import {SkewTrack} from "@/components/SkewTrack";
-import {Field} from "@/components/Stat";
+import {Field} from "@/components/Field";
 import {VerifyPanel} from "@/components/VerifyPanel";
 import {loadDeployment} from "@/lib/deployment";
 import {
