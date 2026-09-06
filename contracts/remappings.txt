@@ -1,2 +1,8 @@
 forge-std/=lib/forge-std/src/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@1inch/swap-vm/=lib/swap-vm/
+@1inch/aqua/=lib/aqua/
+@1inch/solidity-utils/=lib/swap-vm/node_modules/@1inch/solidity-utils/
+lib/swap-vm/:@openzeppelin/contracts/=lib/swap-vm/node_modules/@openzeppelin/contracts/
+lib/aqua/:@openzeppelin/contracts/=lib/swap-vm/node_modules/@openzeppelin/contracts/
+lib/swap-vm/node_modules/:@openzeppelin/contracts/=lib/swap-vm/node_modules/@openzeppelin/contracts/
