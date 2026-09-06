@@ -1,4 +1,5 @@
 import {InventoryTrack, PriceSeries} from "@/components/PriceSeries";
+import {SkewTrack} from "@/components/SkewTrack";
 import {Field, Stat} from "@/components/Stat";
 import {VerifyPanel} from "@/components/VerifyPanel";
 import {loadDeployment} from "@/lib/deployment";
@@ -256,6 +257,16 @@ function HeadlineChart({position}: {position: Position}) {
       </p>
 
       <PriceSeries
+        fills={position.fills}
+        currentMidWad={position.midWad}
+        currentReservationWad={position.reservationPriceWad}
+      />
+
+      {/* The price chart buries its own signal: the mid falls steeply across a
+          one-direction series, and the separation is a small residual on a
+          large trend. These two tracks are that residual, and the inventory
+          it is a response to, plotted where they are the whole series. */}
+      <SkewTrack
         fills={position.fills}
         currentMidWad={position.midWad}
         currentReservationWad={position.reservationPriceWad}
