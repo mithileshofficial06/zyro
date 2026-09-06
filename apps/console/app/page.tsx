@@ -1,4 +1,5 @@
 import {Hero} from "@/components/Hero";
+import {Nav} from "@/components/Nav";
 import {CountUp, Marquee, PressPanel, Reveal, Stagger, StaggerItem} from "@/components/motion";
 import {InventoryTrack, PriceSeries} from "@/components/PriceSeries";
 import {Section} from "@/components/Section";
@@ -52,6 +53,8 @@ export default async function Page() {
 
   return (
     <>
+      <Nav />
+
       <Hero
         block={data.meta?.block ?? null}
         network={deployment?.network ?? null}

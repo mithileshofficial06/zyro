@@ -62,6 +62,18 @@
   border-radius: 0 !important;
 }
 
+html {
+  /* Anchor links land at section starts. The nav is fixed, so every scroll
+     target needs to clear it — see `.section`. */
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 html,
 body {
   margin: 0;
@@ -537,7 +549,9 @@ th.num {
 
 .section {
   padding: 104px 0 0;
-  scroll-margin-top: 24px;
+  /* Clears the fixed nav (52px) plus its progress rule, plus breathing room.
+     Without this an anchor jump parks the section heading underneath the bar. */
+  scroll-margin-top: 78px;
 }
 
 .section__head {
@@ -652,5 +666,154 @@ th.num {
 @media (prefers-reduced-motion: reduce) {
   .marquee__track {
     transform: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sticky nav                                                                */
+/* ------------------------------------------------------------------------ */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--black-sunken);
+  border-bottom: var(--border-width) solid var(--white);
+}
+
+.nav__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.nav__brand {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav__brand:hover {
+  background: transparent;
+  color: var(--maroon-lit);
+}
+
+.nav__list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 2px;
+  /* The labels drop below 720px rather than the list wrapping onto a second
+     row — a two-row nav is taller than the content it sits over. */
+  overflow-x: auto;
+}
+
+.nav__link {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 11px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--white-dim);
+  border: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.nav__link:hover {
+  color: var(--white);
+  background: transparent;
+  border-color: var(--line);
+}
+
+.nav__link--on {
+  color: var(--white-pure);
+  background: var(--maroon);
+  border-color: var(--white);
+}
+
+.nav__index {
+  color: var(--maroon-lit);
+  font-size: 0.62rem;
+}
+
+.nav__link--on .nav__index {
+  color: var(--white);
+}
+
+/* Reading progress. Scaled from the left edge, so it reads as a rule being
+   drawn rather than a bar being filled. */
+.nav__progress {
+  height: 3px;
+  background: var(--maroon-lit);
+  transform-origin: left center;
+}
+
+@media (max-width: 720px) {
+  .nav__label {
+    display: none;
+  }
+  .nav__index {
+    font-size: 0.68rem;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Scroll cue                                                                */
+/* ------------------------------------------------------------------------ */
+
+.cue {
+  position: absolute;
+  right: 20px;
+  bottom: 66px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+
+.cue__text {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
+  color: var(--white-dim);
+}
+
+.cue__rail {
+  position: relative;
+  display: block;
+  width: 2px;
+  height: 44px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.cue__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 18px;
+  background: var(--maroon-lit);
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .cue {
+    display: none;
   }
 }

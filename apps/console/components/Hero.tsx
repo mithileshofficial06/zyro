@@ -3,6 +3,7 @@
 import {motion, useReducedMotion, useScroll, useTransform} from "framer-motion";
 import {useRef} from "react";
 
+import {ScrollCue} from "./Nav";
 import {EASE, Marquee, Pulse, SplitText} from "./motion";
 
 /**
@@ -52,7 +53,7 @@ export function Hero({
   const formulaOpacity = useTransform(scrollYProgress, [0, 0.8], [1, reduced ? 1 : 0.15]);
 
   return (
-    <section ref={ref} className="hero">
+    <section ref={ref} className="hero" id="top">
       <div className="hero__inner">
         <motion.div
           className="row"
@@ -134,6 +135,8 @@ export function Hero({
           </a>
         </motion.div>
       </div>
+
+      <ScrollCue />
 
       <div className="hero__band">
         <Marquee items={BAND} />
