@@ -184,6 +184,46 @@ export const ZYRO_APP: Address = Address.fromString(
 `
 );
 
+// --- subgraph/subgraph.yaml --------------------------------------------------
+//
+// Patched in place rather than left to `graph build --network <name>`.
+//
+// That flag does substitute networks.json into the manifest — but it does so by
+// parsing the YAML and writing it back out, which strips every comment in the
+// file. `subgraph.yaml` documents why no Aqua event parameter may be marked
+// `indexed` and why balances come from Pushed/Pulled rather than Swapped, and
+// losing that to a build step is a bad trade for a substitution that is four
+// string replacements.
+//
+// networks.json is still written, because it is what the tooling expects to
+// find and what `--network` reads if anyone does pass it. Both agree, by
+// construction, because both come from this function.
+const manifestPath = join(root, "subgraph/subgraph.yaml");
+if (existsSync(manifestPath)) {
+  let manifest = readFileSync(manifestPath, "utf8");
+
+  // Targeted per data source. The file has two `address:` keys and two
+  // `startBlock:` keys, and a global replace would give the router Aqua's
+  // deployment block — indexing from before it existed, or after its ship.
+  const patchSource = (yaml, name, address, block) =>
+    yaml.replace(
+      // String.raw, because in an ordinary template literal the escape
+      // sequences collapse: \s becomes s and  becomes an actual backspace
+      // character. The result is a regex that compiles, matches nothing, and
+      // leaves the placeholder zeros in the manifest without any error.
+      new RegExp(
+        String.raw`(name:\s*${name}\b[\s\S]*?address:\s*)"[^"]*"([\s\S]*?startBlock:\s*)\d+`
+      ),
+      `$1"${address}"$2${block}`
+    );
+
+  manifest = patchSource(manifest, "Aqua", aqua.address, aqua.block);
+  manifest = patchSource(manifest, "ZyroRouter", router.address, router.block);
+  manifest = manifest.replace(/^(\s*network:\s*).*$/gm, `$1${network}`);
+
+  stage("subgraph/subgraph.yaml", manifest);
+}
+
 // --- substreams/substreams.yaml ---------------------------------------------
 const substreamsPath = join(root, "substreams/substreams.yaml");
 if (existsSync(substreamsPath)) {
@@ -232,14 +272,10 @@ for (const w of writes) {
   console.log(`wrote ${w.relativePath}`);
 }
 
-// `graph build --network <name>` is what substitutes these addresses into
-// subgraph.yaml. Building without it leaves the manifest's placeholder zeros
-// in place and deploys a subgraph watching address(0) — which indexes nothing,
-// reports no error, and looks exactly like a stale ZYRO_APP.
 console.log(`
 Next:
   cd subgraph
   npm run codegen
-  npm run build            # graph build --network ${network}
-  npx graph deploy <your-subgraph-slug> --network ${network}
+  npm run build
+  npx graph deploy <your-subgraph-slug>
 `);

@@ -99,18 +99,21 @@ cd subgraph
 npx graph auth <deploy key from Studio>
 
 npm run codegen
-npm run build                                  # graph build --network base-sepolia
-npx graph deploy zyro --network base-sepolia
+npm run build
+npx graph deploy zyro
 ```
 
-**`--network base-sepolia` is what substitutes the addresses.** It is baked
-into `npm run build` so it cannot be forgotten, but if you invoke `graph build`
-directly, leaving it off keeps `subgraph.yaml`'s placeholder zeros and deploys
-a subgraph watching `address(0)` — which indexes nothing, reports no error, and
-is indistinguishable from a stale `ZYRO_APP`.
+No `--network` flag needed: step 3 wrote the addresses into `subgraph.yaml`
+directly. That is deliberate — `graph build --network <name>` substitutes them
+by reparsing the manifest and writing it back out, which strips every comment
+in the file, and `subgraph.yaml` documents why no Aqua event parameter may be
+marked `indexed` and why balances come from `Pushed`/`Pulled` rather than
+`Swapped`. `networks.json` is generated too, so passing `--network base-sepolia`
+still works and still agrees.
 
 (`graph-cli` 0.97 has no `--studio` flag; `graph auth <key>` and
-`graph deploy <name>` are the current forms.)
+`graph deploy <name>` are the current forms. The committed scripts used
+`--studio` and would have failed outright.)
 
 Watch the sync. Studio shows indexing errors; the console shows them too.
 

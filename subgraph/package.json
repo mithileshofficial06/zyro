@@ -6,10 +6,10 @@
   "scripts": {
     "fixtures": "node scripts/generate-fixtures.mjs",
     "codegen": "graph codegen",
-    "build": "graph build --network base-sepolia",
+    "build": "graph build",
     "test": "graph test",
     "check": "npm run fixtures && npm run codegen && npm run build",
-    "deploy": "graph deploy zyro --network base-sepolia",
+    "deploy": "graph deploy zyro",
     "auth": "graph auth"
   },
   "devDependencies": {
