@@ -51,11 +51,12 @@ remaining work is a deployment — see [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 | 4 | Ship & swap on Base Sepolia | scripted; **needs a funded key** |
 | 5 | TypeScript SDK, byte-verified against Solidity fixtures | done |
 | 6 | Subgraph + Subgraph MCP | mappings done and tested; **needs a deployment** |
-| 7 | Uniswap v4 hook | done |
+| 7 | Uniswap v4 hook | done; deploy script mines the address, **needs a key to run** |
 | 8 | Competitive routing simulation | done |
 | 9 | Console | done |
+| 10 | Sponsor feedback | done — [FEEDBACK/](FEEDBACK/) |
 
-`forge test` runs 94 tests, `npm test` runs 125, and CI additionally runs the
+`forge test` runs 105 tests, `npm test` runs 125, and CI additionally runs the
 matchstick suite (which has no Windows binary), builds the Substreams crate
 (which cannot compile on Windows at all) and builds the console.
 
