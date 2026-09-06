@@ -1,0 +1,44 @@
+[workspace]
+
+[package]
+name = "zyro_substreams"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Zyro — inventory-aware dynamic liquidity on 1inch Aqua, indexed via Substreams"
+
+[lib]
+# cdylib only. Adding "rlib" links the crate twice into the wasm module and
+# rust-lld fails with `duplicate symbol: alloc` / `dealloc`, because the
+# substreams allocator ends up defined in both copies. `cargo test` still
+# builds its own harness from the same sources, so unit tests are unaffected.
+crate-type = ["cdylib"]
+
+[dependencies]
+substreams = "0.7"
+substreams-ethereum = "0.11"
+# NOTE: `substreams-entity-change` is deliberately NOT a dependency. Its latest
+# release (2.0.0) pins `substreams 0.6.4`, while `substreams-ethereum 0.11`
+# needs `0.7.6`. Two copies of the `substreams` crate means two allocators, and
+# the wasm link fails with `duplicate symbol: alloc` / `dealloc`.
+# The entity-change wire format is vendored as `proto/entity.proto` instead —
+# the same approach StreamingFast's own T3.2 example takes.
+prost = "0.13"
+prost-types = "0.13"
+hex = "0.4"
+ethabi = "18"
+num-bigint = "0.4"
+num-traits = "0.2"
+
+[build-dependencies]
+substreams-ethereum = "0.11"
+prost-build = "0.13"
+
+[profile.release]
+# LTO is off deliberately. With `lto = true` the build fails on this toolchain
+# with `failed to load bitcode of module "substreams-….rcgu.o"` — a mismatch
+# between the substreams 0.7 crate's precompiled bitcode and the current rustc.
+# The cost is a larger .wasm; the alternative is not building at all.
+lto = false
+opt-level = "s"
+strip = "debuginfo"

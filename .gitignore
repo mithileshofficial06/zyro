@@ -43,3 +43,8 @@ subgraph/build/
 subgraph/node_modules/
 subgraph/tests/.latest.json
 subgraph/tests/.latest.json
+
+# Substreams
+substreams/target/
+substreams/src/abi/*.rs
+!substreams/src/abi/mod.rs

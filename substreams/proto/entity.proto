@@ -1,0 +1,52 @@
+// Copied from sf/substreams/sink/entity/v1 — implements the entity-change wire format
+// compatible with graph-node's Substreams sink.
+syntax = "proto3";
+
+package sf.substreams.sink.entity.v1;
+
+option go_package = "github.com/streamingfast/substreams-sink-entity-changes/pb/sf/substreams/sink/entity/v1;pbentity";
+
+message EntityChanges {
+  repeated EntityChange entity_changes = 5;
+}
+
+message EntityChange {
+  // Entity type name (maps to subgraph entity type)
+  string entity = 1;
+  // Primary key / entity ID
+  string id = 2;
+  // Deprecated ordinal (not used by graph-node)
+  uint64 ordinal = 3;
+  // Operation: 0=Unspecified, 1=Create, 2=Update, 3=Delete, 4=Final
+  Operation operation = 4;
+  repeated Field fields = 5;
+
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    OPERATION_CREATE = 1;
+    OPERATION_UPDATE = 2;
+    OPERATION_DELETE = 3;
+    OPERATION_FINAL = 4;
+  }
+}
+
+message Value {
+  oneof typed {
+    int32 int32 = 1;
+    string bigdecimal = 2;
+    string bigint = 3;
+    string string = 4;
+    bytes bytes = 5;
+    bool bool = 6;
+    Array array = 10;
+  }
+}
+
+message Array {
+  repeated Value value = 1;
+}
+
+message Field {
+  string name = 1;
+  Value new_value = 3;
+}

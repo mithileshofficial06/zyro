@@ -1,0 +1,52 @@
+specVersion: v0.1.0
+
+package:
+  name: zyro
+  version: v0.1.0
+  url: https://github.com/mithileshofficial06/zyro
+  doc: |
+    Zyro — inventory-aware dynamic liquidity as a native 1inch SwapVM
+    instruction.
+
+    Indexes the Aqua position lifecycle (Shipped / Docked / Pushed / Pulled) and
+    the Zyro router's fills, and emits EntityChanges for a Substreams-powered
+    subgraph serving the same schema as the AssemblyScript subgraph.
+
+    Aqua's events fire for every app built on it, so the router address is a
+    module parameter rather than a compiled-in constant.
+
+network: base-sepolia
+
+protobuf:
+  files:
+    - zyro.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/zyro_substreams.wasm
+
+params:
+  # The Zyro router, as an Aqua "app". Replace with the deployed address, and
+  # keep it in step with subgraph/src/config.ts.
+  map_events: "0x0000000000000000000000000000000000000000"
+
+modules:
+  - name: map_events
+    kind: map
+    initialBlock: 0
+    inputs:
+      - params: string
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:zyro.v1.Events
+
+  - name: graph_out
+    kind: map
+    initialBlock: 0
+    inputs:
+      - map: map_events
+    output:
+      type: proto:sf.substreams.entity.v1.EntityChanges

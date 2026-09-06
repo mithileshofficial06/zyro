@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package zyro.v1;
+
+// One message type per event.
+//
+// Not a single generic `Event` with a `raw_data` blob: sinks, SQL tables and
+// downstream consumers need stable per-event schemas. Every `uint256` is a
+// decimal `string` — it never fits in a `uint64`, and silent truncation of an
+// amount or a WAD-scaled parameter is a correctness bug, not a style choice.
+
+// Aqua: a strategy was shipped. `strategy` is an ABI-encoded SwapVM Order.
+message Shipped {
+  uint64 block_number = 1;
+  uint64 timestamp = 2;
+  string tx_hash = 3;
+  uint32 log_index = 4;
+
+  string maker = 5;
+  string app = 6;
+  string strategy_hash = 7;
+
+  // The raw blob is kept because the Zyro parameters are decoded out of it.
+  bytes strategy = 8;
+
+  // Decoded from the program inside `strategy`, when it is a Zyro position.
+  bool is_zyro = 9;
+  string gamma_wad = 10;
+  string sigma_sq_wad = 11;
+  string base_spread_wad = 12;
+  string target_inventory_wad = 13;
+  string bound_wad = 14;
+  uint64 horizon_secs = 15;
+  uint64 start_timestamp = 16;
+  bytes program = 17;
+}
+
+// Aqua: a strategy was withdrawn.
+message Docked {
+  uint64 block_number = 1;
+  uint64 timestamp = 2;
+  string tx_hash = 3;
+  uint32 log_index = 4;
+
+  string maker = 5;
+  string app = 6;
+  string strategy_hash = 7;
+}
+
+// Aqua: tokens added to a strategy's balance. Part of the authoritative
+// per-strategy ledger — position balances are reconstructed from Pushed and
+// Pulled, never from accumulated swap deltas.
+message Pushed {
+  uint64 block_number = 1;
+  uint64 timestamp = 2;
+  string tx_hash = 3;
+  uint32 log_index = 4;
+
+  string maker = 5;
+  string app = 6;
+  string strategy_hash = 7;
+  string token = 8;
+  string amount = 9;
+}
+
+// Aqua: tokens removed from a strategy's balance.
+message Pulled {
+  uint64 block_number = 1;
+  uint64 timestamp = 2;
+  string tx_hash = 3;
+  uint32 log_index = 4;
+
+  string maker = 5;
+  string app = 6;
+  string strategy_hash = 7;
+  string token = 8;
+  string amount = 9;
+}
+
+// ZyroRouter: one fill. `order_hash` is the same number as Aqua's
+// `strategy_hash`.
+message Swapped {
+  uint64 block_number = 1;
+  uint64 timestamp = 2;
+  string tx_hash = 3;
+  uint32 log_index = 4;
+
+  string order_hash = 5;
+  string maker = 6;
+  string taker = 7;
+  string token_in = 8;
+  string token_out = 9;
+  string amount_in = 10;
+  string amount_out = 11;
+}
+
+// Everything decoded from one block, grouped per event type.
+message Events {
+  repeated Shipped shipped = 1;
+  repeated Docked docked = 2;
+  repeated Pushed pushed = 3;
+  repeated Pulled pulled = 4;
+  repeated Swapped swapped = 5;
+}
