@@ -12,6 +12,31 @@ export {
 } from "./instructions.ts";
 
 export {
+  MakerTraitsBits,
+  buildOrder,
+  encodeOrder,
+  orderHash,
+  programStartByte,
+  type BuildOrderParams,
+  type SwapVmOrder,
+} from "./order.ts";
+
+export {
+  Selectors,
+  buildDockTx,
+  buildShipZyroStrategyTx,
+  calculateStrategyHash,
+  encodeDockCalldata,
+  encodeShipCalldata,
+  type CallInfo,
+  type ShipZyroStrategyParams,
+  type ShipZyroStrategyResult,
+  type TokenAmount,
+} from "./aqua.ts";
+
+export {keccak256, keccak256Bytes} from "./keccak.ts";
+
+export {
   applyInventorySkew,
   effectivePriceWad,
   halfSpreadWad,
