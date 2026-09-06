@@ -48,3 +48,6 @@ subgraph/tests/.latest.json
 substreams/target/
 substreams/src/abi/*.rs
 !substreams/src/abi/mod.rs
+
+# Local-chain broadcast artifacts (anvil). Real testnet/mainnet runs are kept.
+contracts/broadcast/*/31337/
