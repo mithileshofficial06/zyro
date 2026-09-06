@@ -32,12 +32,19 @@ runs = 2000
 runs = 256
 depth = 32
 
-# v4-core's Pool.sol hits a stack-too-deep Yul error under via_ir unless it is
-# compiled with the very high optimizer_runs its own foundry.toml uses.
-# See ZYRO_BUILD_SPEC.md §15 ("solc conflict").
-[[profile.default.compilation_restrictions]]
-paths = "lib/v4-core/src/**"
-optimizer_runs = 44_444_444
+# NOTE on v4-core. ZYRO_BUILD_SPEC.md §15 warns that `Pool.sol` hits a
+# stack-too-deep Yul error under via_ir unless compiled with the very high
+# optimizer_runs v4-core's own foundry.toml uses, and prescribes a
+# `compilation_restrictions` entry for it.
+#
+# That entry is deliberately absent. Foundry rejects it here — "Missing profile
+# satisfying settings restrictions" — because a restriction has to be
+# satisfiable by some profile, and it conflicts with the optimizer_details
+# swap-vm requires above. It is also unnecessary: `ZyroSkewHook` imports
+# v4-core's interfaces, libraries and types, not `Pool.sol`, so the file the
+# warning is about never enters the compilation graph.
+#
+# Re-evaluate if a test ever pulls in the full `PoolManager`.
 
 [profile.ci]
 verbosity = 3
