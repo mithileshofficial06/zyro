@@ -1,0 +1,17 @@
+{
+  "name": "zyro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Inventory-aware dynamic liquidity as a native 1inch SwapVM instruction",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "npm run test --workspaces --if-present"
+  }
+}

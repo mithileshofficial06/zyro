@@ -10,21 +10,32 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  contracts:
-    name: forge test
+  test:
+    name: contracts + sdk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
 
-      - name: Show forge version
-        run: forge --version
+      - run: forge --version
+
+      # swap-vm and aqua resolve their Solidity dependencies through npm into
+      # node_modules, referenced by remappings.txt — not through forge
+      # submodules. A fresh `forge build` fails with unresolved imports until
+      # this runs.
+      - name: Install swap-vm Solidity dependencies
+        working-directory: contracts/lib/swap-vm
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Check formatting
         working-directory: contracts
@@ -35,23 +46,17 @@ jobs:
         working-directory: contracts
         run: forge build --sizes
 
-      - name: Test
+      # Also regenerates contracts/test/fixtures/encoding.json.
+      - name: Test contracts
         working-directory: contracts
-        run: forge test -vvv
+        run: forge test -vv
 
-  sdk:
-    name: sdk tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      # The fixtures are the SDK's source of truth for byte-parity. If a change
+      # to the Solidity encoder alters them, the committed copy must be updated
+      # in the same commit — otherwise the SDK is being checked against a stale
+      # expectation and the cross-language guarantee is worthless.
+      - name: Fail if the committed encoding fixtures are stale
+        run: git diff --exit-code -- contracts/test/fixtures/encoding.json
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install
-        run: npm ci --ignore-scripts
-        continue-on-error: true
-
-      - name: Test
-        run: npm test --workspaces --if-present
+      - name: Test SDK
+        run: npm test

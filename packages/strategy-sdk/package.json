@@ -1,0 +1,19 @@
+{
+  "name": "@zyro/strategy-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript encoders for Zyro SwapVM programs, byte-verified against the Solidity implementation",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.ts"
+  },
+  "files": [
+    "src"
+  ]
+}
