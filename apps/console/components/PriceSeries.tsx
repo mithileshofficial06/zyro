@@ -1,3 +1,4 @@
+import {AnimatedBar, AnimatedLabel, AnimatedMarker, AnimatedPath, AnimatedRule} from "./AnimatedSvg";
 import {spreadBps} from "@/lib/format";
 import type {Fill} from "@/lib/types";
 
@@ -171,32 +172,37 @@ export function PriceSeries({fills, currentMidWad, currentReservationWad}: Props
 
           {/* Mid first, so the reservation price draws over it where they meet
               — the overlap at the balanced end is the point being made, and
-              the maroon line is the one that has to read as on top. */}
-          <path d={path("mid")} fill="none" stroke="#f5f2ed" strokeWidth={3} strokeLinecap="butt" />
-          <path
-            d={path("reservation")}
-            fill="none"
-            stroke="#a82b38"
-            strokeWidth={3.5}
-            strokeLinecap="butt"
-          />
+              the maroon line is the one that has to read as on top.
+
+              Both draw left to right over the same window, in step. That is
+              deliberate: they share a starting point and diverge rightwards,
+              so drawing them together shows the separation *opening*, which
+              is the claim. Revealing a finished picture leaves the reader to
+              find the gap on their own. */}
+          <AnimatedPath d={path("mid")} stroke="#f5f2ed" strokeWidth={3} duration={1.3} />
+          <AnimatedPath d={path("reservation")} stroke="#a82b38" strokeWidth={3.5} duration={1.3} />
 
           {/* Square markers, not circles. Every fill is a discrete event and
-              the shape should say so. */}
-          {points.map((p, i) => (
-            <g key={i}>
-              <rect x={sx(p.x) - 3} y={sy(p.mid) - 3} width={6} height={6} fill="#f5f2ed" />
-              <rect
-                x={sx(p.x) - 3.5}
-                y={sy(p.reservation) - 3.5}
-                width={7}
-                height={7}
-                fill="#a82b38"
-                stroke="#0a0908"
-                strokeWidth={1}
-              />
-            </g>
-          ))}
+              the shape should say so. Each pops in as the line reaches it —
+              the delay is the point's own position along the draw, so a marker
+              never arrives ahead of its segment. */}
+          {points.map((p, i) => {
+            const arrival = 1.3 * (i / Math.max(points.length - 1, 1));
+            return (
+              <g key={i}>
+                <AnimatedMarker x={sx(p.x)} y={sy(p.mid)} size={6} fill="#f5f2ed" delay={arrival} />
+                <AnimatedMarker
+                  x={sx(p.x)}
+                  y={sy(p.reservation)}
+                  size={7}
+                  fill="#a82b38"
+                  stroke="#0a0908"
+                  strokeWidth={1}
+                  delay={arrival}
+                />
+              </g>
+            );
+          })}
 
           {points.map((p, i) => {
             // Label the ends and every third step; labelling all of a
@@ -232,43 +238,44 @@ export function PriceSeries({fills, currentMidWad, currentReservationWad}: Props
 
           {/* The reservation price's end state, called out where the line
               lands rather than left to the legend. */}
+          {/* Both callouts wait until the lines have finished drawing. They
+              are the answer, and an answer that appears before its working
+              is just a number. */}
           <g>
-            <line
+            <AnimatedRule
               x1={sx(last.x)}
               x2={PAD.left + PLOT_W + 8}
               y1={sy(last.reservation)}
               y2={sy(last.reservation)}
               stroke="#a82b38"
-              strokeWidth={1}
-              strokeDasharray="3 3"
+              dash="3 3"
+              delay={1.3}
             />
-            <text
+            <AnimatedLabel
               x={PAD.left + PLOT_W + 12}
               y={sy(last.reservation) + 4}
               fill="#a82b38"
-              fontFamily="var(--font-mono)"
-              fontSize={11}
+              delay={1.5}
             >
               {last.reservation.toFixed(4)}
-            </text>
-            <line
+            </AnimatedLabel>
+            <AnimatedRule
               x1={sx(last.x)}
               x2={PAD.left + PLOT_W + 8}
               y1={sy(last.mid)}
               y2={sy(last.mid)}
               stroke="#f5f2ed"
-              strokeWidth={1}
-              strokeDasharray="3 3"
+              dash="3 3"
+              delay={1.3}
             />
-            <text
+            <AnimatedLabel
               x={PAD.left + PLOT_W + 12}
               y={sy(last.mid) + 4}
               fill="#f5f2ed"
-              fontFamily="var(--font-mono)"
-              fontSize={11}
+              delay={1.5}
             >
               {last.mid.toFixed(4)}
-            </text>
+            </AnimatedLabel>
           </g>
         </svg>
       </div>
@@ -365,7 +372,7 @@ export function InventoryTrack({fills}: {fills: Fill[]}) {
           const barHeight = Math.max(Math.abs(H / 2 - y), 1);
           const width = Math.max(PLOT_W / Math.max(values.length, 1) - 6, 3);
           return (
-            <rect
+            <AnimatedBar
               key={i}
               x={sx(i) - width / 2}
               y={barTop}
@@ -374,6 +381,10 @@ export function InventoryTrack({fills}: {fills: Fill[]}) {
               fill={v >= 0 ? "#a82b38" : "#3d0f17"}
               stroke="#f5f2ed"
               strokeWidth={1}
+              // Positive bars grow up off the axis, negative ones down. The
+              // side of zero a bar sits on is the only thing this track says.
+              fromBottom={v >= 0}
+              delay={0.3 + i * 0.05}
             />
           );
         })}

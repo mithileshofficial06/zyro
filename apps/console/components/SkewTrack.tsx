@@ -1,3 +1,4 @@
+import {AnimatedArea, AnimatedLabel, AnimatedMarker, AnimatedPath, AnimatedRule} from "./AnimatedSvg";
 import {spreadBps} from "@/lib/format";
 import type {Fill} from "@/lib/types";
 
@@ -128,12 +129,21 @@ export function SkewTrack({
           −{extent.toFixed(0)}
         </text>
 
-        {/* Flat maroon fill, not a gradient. It reads as an area, not depth. */}
-        <path d={area} fill="#3d0f17" stroke="none" />
-        <path d={line} fill="none" stroke="#a82b38" strokeWidth={3} strokeLinecap="butt" />
+        {/* Flat maroon fill, not a gradient. It reads as an area, not depth.
+            It wipes in under the line at the same rate, so the shape fills as
+            the skew opens rather than appearing beneath a finished curve. */}
+        <AnimatedArea d={area} fill="#3d0f17" duration={1.3} />
+        <AnimatedPath d={line} stroke="#a82b38" strokeWidth={3} duration={1.3} />
 
         {values.map((v, i) => (
-          <rect key={i} x={sx(i) - 3} y={sy(v) - 3} width={6} height={6} fill="#a82b38" />
+          <AnimatedMarker
+            key={i}
+            x={sx(i)}
+            y={sy(v)}
+            size={6}
+            fill="#a82b38"
+            delay={1.3 * (i / Math.max(values.length - 1, 1))}
+          />
         ))}
 
         {labels.map((label, i) => {
@@ -165,25 +175,19 @@ export function SkewTrack({
           SKEW · BPS FROM MID
         </text>
 
-        <line
+        <AnimatedRule
           x1={sx(values.length - 1)}
           x2={PAD.left + PLOT_W + 8}
           y1={sy(last)}
           y2={sy(last)}
           stroke="#a82b38"
-          strokeWidth={1}
-          strokeDasharray="3 3"
+          dash="3 3"
+          delay={1.3}
         />
-        <text
-          x={PAD.left + PLOT_W + 12}
-          y={sy(last) + 4}
-          fill="#a82b38"
-          fontFamily="var(--font-mono)"
-          fontSize={11}
-        >
+        <AnimatedLabel x={PAD.left + PLOT_W + 12} y={sy(last) + 4} fill="#a82b38" delay={1.5}>
           {last >= 0 ? "+" : ""}
           {last.toFixed(1)}
-        </text>
+        </AnimatedLabel>
       </svg>
     </div>
   );
