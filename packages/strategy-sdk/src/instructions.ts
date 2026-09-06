@@ -9,24 +9,26 @@
  */
 
 import { concatHex, packByte, packInt, packUint, byteLength, type Hex } from "./bytes.ts";
+import { ZYRO_OPCODE, stockOpcode } from "./aqua-opcodes.ts";
 
 /**
- * Opcode indices in the Aqua instruction set.
+ * Opcode bytes in the Aqua instruction set.
  *
  * These are positions in a **dense** dispatch array, not slots in a sparse
- * address space. `AquaOpcodes._opcodes()` builds a fixed `[35]` array and then
- * `mstore`s the length over element 0, so the effective map is shifted by one
- * from a naive reading of the source: valid opcodes are `0..33`.
+ * address space, so they are *derived* from the instruction ordering in
+ * `aqua-opcodes.ts` rather than written down as magic numbers. If 1inch appends
+ * an instruction upstream, updating that one list moves Zyro out of the way.
  *
- * See `docs/PHASE2-SOURCE-VERIFICATION.md`.
+ * @see docs/PHASE2-SOURCE-VERIFICATION.md
+ * @see docs/UPSTREAM-SDK-VERIFICATION.md
  */
 export const Opcode = {
   /** `XYCSwap._xycSwapXD` — the constant-product curve. Takes no arguments. */
-  XYC_SWAP: 17,
+  XYC_SWAP: stockOpcode("xycSwap.xycSwapXD"),
   /** `Controls._salt` — does nothing; exists to make an order hash unique. */
-  SALT: 20,
+  SALT: stockOpcode("controls.salt"),
   /** `ZyroInventorySkew` — the next free index after the stock set's 34 entries. */
-  ZYRO_INVENTORY_SKEW: 34,
+  ZYRO_INVENTORY_SKEW: ZYRO_OPCODE,
 } as const;
 
 /** Argument-block length of the Zyro instruction, in bytes. */

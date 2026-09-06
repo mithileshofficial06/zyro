@@ -12,6 +12,13 @@ export {
 } from "./instructions.ts";
 
 export {
+  EMPTY,
+  STOCK_AQUA_INSTRUCTIONS,
+  ZYRO_OPCODE,
+  stockOpcode,
+} from "./aqua-opcodes.ts";
+
+export {
   addressToBigInt,
   byteLength,
   concatHex,
