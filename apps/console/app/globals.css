@@ -360,3 +360,297 @@ th.num {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Hero                                                                      */
+/*                                                                           */
+/* Full-viewport, because the page's first job is to make one claim and make  */
+/* it unmissable. Everything below it is evidence for that claim.            */
+/* ------------------------------------------------------------------------ */
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: var(--border-heavy) solid var(--white);
+}
+
+.hero__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 96px 20px 40px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.hero__title {
+  /* Deliberately enormous. It is one word and it is the only thing on the
+     page allowed to be this size. */
+  font-size: clamp(4.5rem, 19vw, 15rem);
+  line-height: 0.82;
+  letter-spacing: -0.045em;
+  display: flex;
+  align-items: flex-end;
+}
+
+.hero__dot {
+  color: var(--maroon-lit);
+  display: inline-block;
+  transform-origin: bottom center;
+}
+
+.hero__lede {
+  max-width: 60ch;
+  margin: 28px 0 0;
+  font-size: clamp(1rem, 1.5vw, 1.28rem);
+  line-height: 1.5;
+  border-left: var(--border-heavy) solid var(--maroon);
+  padding-left: 18px;
+}
+
+.hero__mark {
+  background: var(--maroon);
+  color: var(--white-pure);
+  padding: 1px 6px;
+  font-weight: 600;
+  /* Box-decoration-break keeps the highlight intact across a line wrap;
+     without it the second line loses its left padding and the mark reads as
+     two different marks. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.hero__formula {
+  margin-top: 44px;
+}
+
+.formula {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  font-family: var(--font-mono);
+  font-size: clamp(1.6rem, 4.4vw, 3.4rem);
+  line-height: 1.25;
+}
+
+.formula__sym {
+  color: var(--white);
+}
+
+.formula__op {
+  color: var(--white-dim);
+}
+
+/* `q` is the only coloured symbol. Every other term has been standard since
+   2008; this is the one no on-chain venue exposed before Aqua. */
+.formula__hot {
+  color: var(--white-pure);
+  background: var(--maroon-lit);
+  padding: 0 14px;
+  font-weight: 700;
+}
+
+.formula__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--maroon-lit);
+  margin-left: 4px;
+  flex-basis: 100%;
+  margin-top: 10px;
+}
+
+.formula__arrow {
+  font-size: 1rem;
+}
+
+.hero__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 48px;
+}
+
+.hero__actions .btn {
+  padding: 13px 22px;
+  font-size: 0.78rem;
+}
+
+.hero__band {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top: var(--border-width) solid var(--white);
+  background: var(--maroon);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Marquee                                                                   */
+/* ------------------------------------------------------------------------ */
+
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 11px 0;
+}
+
+.marquee__track {
+  display: inline-flex;
+  /* The track holds two identical copies and travels exactly -50%, so the
+     seam lands where copy two's first item sits over copy one's. Any other
+     distance produces a periodic jump that reads as a rendering bug. */
+  width: max-content;
+}
+
+.marquee__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  padding-right: 22px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--white-pure);
+}
+
+.marquee__dot {
+  color: var(--black);
+  font-size: 0.6rem;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sections                                                                  */
+/*                                                                           */
+/* The previous page ran every panel together at one rhythm, so nothing read  */
+/* as a section at all. These give each one a number, a heavy rule and real   */
+/* vertical air.                                                             */
+/* ------------------------------------------------------------------------ */
+
+.section {
+  padding: 104px 0 0;
+  scroll-margin-top: 24px;
+}
+
+.section__head {
+  margin-bottom: 36px;
+}
+
+.section__index {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  color: var(--maroon-lit);
+  display: block;
+  margin-bottom: 12px;
+}
+
+.section__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  font-size: clamp(1.9rem, 5vw, 3.4rem);
+  line-height: 0.94;
+  margin: 0 0 18px;
+}
+
+.section__lede {
+  max-width: 68ch;
+  margin: 18px 0 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--white);
+}
+
+.section__lede .dim {
+  color: var(--white-dim);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Mechanism cards                                                           */
+/* ------------------------------------------------------------------------ */
+
+.step {
+  border: var(--border-width) solid var(--white);
+  background: var(--black-raised);
+  padding: 22px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step__n {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--maroon-lit);
+}
+
+.step__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.step__body {
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--white-dim);
+  margin: 0;
+}
+
+.step__body strong {
+  color: var(--white);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Footer                                                                    */
+/* ------------------------------------------------------------------------ */
+
+.footer {
+  margin-top: 104px;
+  border-top: var(--border-heavy) solid var(--white);
+  padding: 40px 0 0;
+}
+
+.footer__grid {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .footer__grid {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}
+
+.footer__list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 2;
+}
+
+/* A viewer who asked their OS for less motion gets the finished state, not a
+   faster animation. The marquee is the one thing CSS has to stop, since its
+   loop is declared in JS but its layout is here. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee__track {
+    transform: none !important;
+  }
+}

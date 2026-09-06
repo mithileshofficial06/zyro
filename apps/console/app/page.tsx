@@ -1,6 +1,9 @@
+import {Hero} from "@/components/Hero";
+import {CountUp, Marquee, PressPanel, Reveal, Stagger, StaggerItem} from "@/components/motion";
 import {InventoryTrack, PriceSeries} from "@/components/PriceSeries";
+import {Section} from "@/components/Section";
 import {SkewTrack} from "@/components/SkewTrack";
-import {Field, Stat} from "@/components/Stat";
+import {Field} from "@/components/Stat";
 import {VerifyPanel} from "@/components/VerifyPanel";
 import {loadDeployment} from "@/lib/deployment";
 import {
@@ -21,8 +24,13 @@ import type {Position} from "@/lib/types";
  *
  * A server component, refetched on every request. Nothing here is cached: the
  * page's whole claim is that these numbers match the chain right now, and a
- * cached reservation price beside a live `eth_call` would look like a
- * mismatch that is really a stale render.
+ * cached reservation price beside a live `eth_call` would look like a mismatch
+ * that is really a stale render.
+ *
+ * @dev Structured as an argument rather than a dashboard. Each section is one
+ *      step — the claim, the mechanism, the live series, the proof — because a
+ *      wall of equally-weighted panels makes a reader skim and skimming is
+ *      fatal to a page whose entire point is a number being correct.
  */
 export const dynamic = "force-dynamic";
 
@@ -43,164 +51,242 @@ export default async function Page() {
       : null;
 
   return (
-    <main className="shell">
-      <Masthead
+    <>
+      <Hero
         block={data.meta?.block ?? null}
-        hasErrors={data.meta?.hasIndexingErrors ?? false}
         network={deployment?.network ?? null}
         configured={data.configured}
+        hasErrors={data.meta?.hasIndexingErrors ?? false}
       />
 
-      {!data.configured ? <SetupNotice /> : null}
-      {data.error ? <ErrorNotice message={data.error} /> : null}
+      <main className="shell">
+        {!data.configured ? <SetupNotice /> : null}
+        {data.error ? <ErrorNotice message={data.error} /> : null}
 
-      <div className="stack" style={{marginTop: 32}}>
-        <ProtocolStats
-          positions={data.protocol?.positionCount ?? String(data.positions.length)}
-          active={data.protocol?.activePositionCount ?? "0"}
-          fills={data.protocol?.fillCount ?? "0"}
-          position={position}
-        />
+        <Mechanism />
+
+        <Section
+          id="live"
+          index="02 / Live"
+          title={
+            <>
+              The price
+              <br />
+              no pool can quote
+            </>
+          }
+          lede={
+            <>
+              Two lines that sit exactly on top of each other while the position is at its
+              inventory target, and separate as it takes on one side.{" "}
+              <span className="dim">
+                The y-axis is zoomed to the data — the separation is a fraction of a
+                percent, and against a domain starting at zero it would be invisible.
+              </span>
+            </>
+          }
+        >
+          <ProtocolStats
+            positions={data.protocol?.positionCount ?? String(data.positions.length)}
+            active={data.protocol?.activePositionCount ?? "0"}
+            fills={data.protocol?.fillCount ?? "0"}
+            position={position}
+          />
+
+          {position ? (
+            <Reveal delay={0.1} style={{marginTop: 24}}>
+              <HeadlineChart position={position} />
+            </Reveal>
+          ) : data.configured && !data.error ? (
+            <EmptyIndex />
+          ) : null}
+        </Section>
 
         {position ? (
           <>
-            <HeadlineChart position={position} />
-            <div className="grid grid--2">
-              <PositionDetail position={position} />
-              <VerifyPanel positionId={position.id} initial={verification} />
-            </div>
-            <FillsTable position={position} />
-            {data.positions.length > 1 ? (
-              <PositionsTable positions={data.positions} />
-            ) : null}
+            <Section
+              id="proof"
+              index="03 / Proof"
+              title="Correct, not just live"
+              lede={
+                <>
+                  &ldquo;Live and indexing&rdquo; shows on any subgraph&apos;s status page.
+                  Whether it returns <em>correct</em> data is not something a subgraph can
+                  demonstrate about itself — it needs a second opinion computed somewhere
+                  else.{" "}
+                  <span className="dim">
+                    So the right-hand column is the chain: <span className="mono">ZyroLens</span>{" "}
+                    reading <span className="mono">AQUA.safeBalances</span> and running the
+                    same Solidity library the instruction prices with.
+                  </span>
+                </>
+              }
+            >
+              <div className="grid grid--2">
+                <Reveal>
+                  <PositionDetail position={position} />
+                </Reveal>
+                <Reveal delay={0.08}>
+                  <VerifyPanel positionId={position.id} initial={verification} />
+                </Reveal>
+              </div>
+            </Section>
+
+            <Section
+              id="fills"
+              index="04 / Settlement"
+              title="Every fill, on-chain"
+              lede={
+                <>
+                  Each row settled on Base Sepolia, and each quoted before it swapped with
+                  the two required to match.{" "}
+                  <span className="dim">
+                    Mid and reservation price are the state <em>before</em> the fill —
+                    reconstructed by undoing its own deltas, because Aqua emits{" "}
+                    <span className="mono">Pushed</span>/<span className="mono">Pulled</span>{" "}
+                    during settlement and <span className="mono">Swapped</span> after it.
+                  </span>
+                </>
+              }
+            >
+              <Reveal>
+                <FillsTable position={position} />
+              </Reveal>
+
+              {data.positions.length > 1 ? (
+                <Reveal style={{marginTop: 24}}>
+                  <PositionsTable positions={data.positions} />
+                </Reveal>
+              ) : null}
+            </Section>
           </>
-        ) : data.configured && !data.error ? (
-          <EmptyIndex />
         ) : null}
 
-        <Deployment deployment={deployment} />
-      </div>
-    </main>
+        <Section
+          id="stack"
+          index="05 / Stack"
+          title="What is running"
+          lede="Three independent implementations of the same kernel, and a way to make them disagree out loud."
+        >
+          <Stack deployment={deployment} />
+        </Section>
+
+        <Footer deployment={deployment} />
+      </main>
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
+// 01 — the mechanism
+// ---------------------------------------------------------------------------
 
-function Masthead({
-  block,
-  hasErrors,
-  network,
-  configured
-}: {
-  block: number | null;
-  hasErrors: boolean;
-  network: string | null;
-  configured: boolean;
-}) {
+const STEPS = [
+  {
+    n: "01",
+    title: "The maker keeps their tokens",
+    body: (
+      <>
+        Shipping a position to Aqua moves <strong>nothing</strong>. It writes a number
+        into a ledger 1inch themselves comment as <em>makers&apos; allowances</em>. Tokens
+        stay in the maker&apos;s own wallet until a swap settles, then move maker ↔ taker
+        directly.
+      </>
+    )
+  },
+  {
+    n: "02",
+    title: "So there is a q",
+    body: (
+      <>
+        Because every position has a named owner with a declared target,{" "}
+        <strong>q = balance − target</strong> exists. A pool AMM&apos;s inventory belongs
+        to everybody, so there is no individual to be away from a target, and no q to
+        price against.
+      </>
+    )
+  },
+  {
+    n: "03",
+    title: "SwapVM pre-loads the balance",
+    body: (
+      <>
+        <strong>Before any instruction runs</strong>, the VM populates the execution
+        context from <span className="mono">AQUA.safeBalances</span>. The number
+        Avellaneda–Stoikov needs is already in a register.
+      </>
+    )
+  },
+  {
+    n: "04",
+    title: "One instruction re-centres the curve",
+    body: (
+      <>
+        <strong>Opcode 34</strong>, appended to the stock Aqua table by copying it
+        positionally. Every program the real 1inch SDK emits still runs byte-identically —
+        proved against a real <span className="mono">AquaSwapVMRouter</span>, not asserted.
+      </>
+    )
+  }
+];
+
+function Mechanism() {
   return (
-    <header style={{paddingTop: 56}}>
-      <div className="row" style={{gap: 10, marginBottom: 18}}>
-        <span className={block !== null ? "tag tag--live" : "tag tag--idle"}>
-          {block !== null ? "indexing" : configured ? "unreachable" : "not configured"}
-        </span>
-        {network ? <span className="tag tag--idle">{network}</span> : null}
-        {block !== null ? (
-          <span className="tag tag--idle num">block {block.toLocaleString()}</span>
-        ) : null}
-        {hasErrors ? (
-          <span className="tag" style={{color: "var(--maroon-lit)"}}>
-            indexing errors
+    <Section
+      id="mechanism"
+      index="01 / Mechanism"
+      title={
+        <>
+          Known since 2008.
+          <br />
+          Impossible on-chain until now.
+        </>
+      }
+      lede={
+        <>
+          A market maker earns spread on every fill and can still lose money, because
+          one-directional flow forces them to accumulate an asset that is falling. The fix
+          is to quote around your <strong>reservation price</strong> — where you, given
+          what you hold, are indifferent to trading — instead of the market mid.{" "}
+          <span className="dim">
+            It required an input no on-chain venue exposed. Aqua exposes it.
           </span>
-        ) : null}
-      </div>
+        </>
+      }
+    >
+      <Stagger className="grid grid--4" gap={0.09}>
+        {STEPS.map((step) => (
+          <StaggerItem key={step.n}>
+            <PressPanel className="step">
+              <span className="step__n">{step.n}</span>
+              <h3 className="step__title">{step.title}</h3>
+              <p className="step__body">{step.body}</p>
+            </PressPanel>
+          </StaggerItem>
+        ))}
+      </Stagger>
 
-      <h1>
-        ZYRO<span style={{color: "var(--maroon-lit)"}}>.</span>
-      </h1>
-
-      <p
-        style={{
-          maxWidth: "62ch",
-          marginTop: 18,
-          fontSize: "1.02rem",
-          borderLeft: "4px solid var(--maroon)",
-          paddingLeft: 16
-        }}
-      >
-        Inventory-aware dynamic liquidity as a native 1inch SwapVM instruction. Every
-        shipped position publishes the reservation price it is actually quoting at, so a
-        solver can route on it without re-implementing Avellaneda–Stoikov — and this page
-        checks that price against the chain, field for field.
-      </p>
-    </header>
+      <Reveal delay={0.2} style={{marginTop: 24}}>
+        <div className="panel panel--maroon">
+          <span className="label" style={{color: "var(--white)"}}>
+            What is not claimed
+          </span>
+          <p style={{margin: "10px 0 0", maxWidth: "72ch"}}>
+            Not that inventory-aware market making was invented here. It has been standard
+            on professional desks since Avellaneda &amp; Stoikov published it. The claim is
+            that it required an input no on-chain venue exposed, that 1inch Aqua exposes
+            it, and that this is the implementation — running as a native instruction
+            inside 1inch&apos;s own execution engine.
+          </p>
+        </div>
+      </Reveal>
+    </Section>
   );
 }
 
-function SetupNotice() {
-  return (
-    <section className="panel" style={{marginTop: 32}}>
-      <div className="panel__head">
-        <h2>Not configured</h2>
-      </div>
-      <p style={{marginTop: 0}}>
-        Set <span className="mono">SUBGRAPH_URL</span> and{" "}
-        <span className="mono">BASE_SEPOLIA_RPC_URL</span>, then restart. The console
-        reads both server-side; neither reaches the browser.
-      </p>
-      <ol className="mono dim" style={{fontSize: "0.8rem", lineHeight: 1.9, paddingLeft: 20}}>
-        <li>forge script script/DeployZyroRouter.s.sol --broadcast</li>
-        <li>forge script script/SwapSeries.s.sol --broadcast --slow</li>
-        <li>node scripts/wire-addresses.mjs</li>
-        <li>cd subgraph &amp;&amp; npm run codegen &amp;&amp; npx graph deploy --studio zyro</li>
-        <li>cp .env.example .env.local, then fill it in</li>
-      </ol>
-    </section>
-  );
-}
-
-function ErrorNotice({message}: {message: string}) {
-  return (
-    <section className="panel" style={{marginTop: 32, borderColor: "var(--maroon-lit)"}}>
-      <div className="panel__head">
-        <h2 style={{color: "var(--maroon-lit)"}}>Subgraph unreachable</h2>
-      </div>
-      <p className="mono" style={{margin: 0, fontSize: "0.82rem"}}>
-        {message}
-      </p>
-    </section>
-  );
-}
-
-function EmptyIndex() {
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <h2>Nothing indexed</h2>
-      </div>
-      <p style={{marginTop: 0, maxWidth: "66ch"}}>
-        The subgraph is reachable and has indexed no positions. Both silent failure
-        modes look exactly like this, so check them in order:
-      </p>
-      <ul style={{maxWidth: "66ch", lineHeight: 1.7}}>
-        <li>
-          <strong>The app filter.</strong> <span className="mono">ZYRO_APP</span> in{" "}
-          <span className="mono">subgraph/src/config.ts</span> must be the deployed
-          router. A stale value does not error — every event fails the filter and the
-          subgraph syncs to chainhead having stored nothing.
-        </li>
-        <li>
-          <strong>The program decode.</strong> If{" "}
-          <span className="mono">decodeStrategy</span> finds no Zyro instruction, the
-          position is skipped as legitimately not ours. Same symptom, different cause.
-        </li>
-        <li>
-          <strong>Nothing shipped yet.</strong> Run{" "}
-          <span className="mono">script/SwapSeries.s.sol</span>.
-        </li>
-      </ul>
-    </section>
-  );
-}
+// ---------------------------------------------------------------------------
+// 02 — live
+// ---------------------------------------------------------------------------
 
 function ProtocolStats({
   positions,
@@ -216,25 +302,76 @@ function ProtocolStats({
   const separation = position ? spreadBps(position.midWad, position.reservationPriceWad) : null;
 
   return (
-    <section className="grid grid--4">
-      <Stat label="Positions" value={positions} hint={`${active} still shipped`} />
-      <Stat label="Fills" value={fills} hint="settled on-chain" />
-      <Stat
-        label="Mid"
-        value={position ? formatWad(position.midWad, 6) : "—"}
-        hint="implied by the current balance pair"
-      />
-      <Stat
-        label="Reservation price"
-        value={position ? formatWad(position.reservationPriceWad, 6) : "—"}
-        accent
-        hint={
-          separation === null
-            ? undefined
-            : `${separation >= 0 ? "+" : ""}${separation.toFixed(2)} bps from the mid`
-        }
-      />
-    </section>
+    <Stagger className="grid grid--4">
+      <StaggerItem>
+        <BigStat label="Positions" value={positions} hint={`${active} still shipped`} count />
+      </StaggerItem>
+      <StaggerItem>
+        <BigStat label="Fills" value={fills} hint="settled on-chain" count />
+      </StaggerItem>
+      <StaggerItem>
+        <BigStat
+          label="Mid"
+          value={position ? formatWad(position.midWad, 6) : "—"}
+          hint="implied by the current balance pair"
+        />
+      </StaggerItem>
+      <StaggerItem>
+        <BigStat
+          label="Reservation price"
+          value={position ? formatWad(position.reservationPriceWad, 6) : "—"}
+          accent
+          hint={
+            separation === null
+              ? "no position indexed"
+              : `${separation >= 0 ? "+" : ""}${separation.toFixed(2)} bps from the mid`
+          }
+        />
+      </StaggerItem>
+    </Stagger>
+  );
+}
+
+/**
+ * @dev `count` is opt-in, and off for prices. `CountUp` refuses anything past
+ *      `MAX_SAFE_INTEGER` anyway, but a six-decimal price rolling up to its
+ *      final value reads as a live ticker rather than a settled quote — which
+ *      is the opposite of what this page is asserting.
+ */
+function BigStat({
+  label,
+  value,
+  hint,
+  accent = false,
+  count = false
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: boolean;
+  count?: boolean;
+}) {
+  return (
+    <PressPanel className={accent ? "panel panel--maroon" : "panel"} style={{height: "100%"}}>
+      <span className="label">{label}</span>
+      <div
+        className="num"
+        style={{
+          fontSize: "clamp(1.6rem, 3.2vw, 2.4rem)",
+          fontWeight: 700,
+          marginTop: 8,
+          overflowWrap: "anywhere",
+          color: accent ? "var(--white-pure)" : "var(--white)"
+        }}
+      >
+        {count ? <CountUp value={value} /> : value}
+      </div>
+      {hint ? (
+        <div className="dim" style={{fontSize: "0.7rem", marginTop: 8, lineHeight: 1.4}}>
+          {hint}
+        </div>
+      ) : null}
+    </PressPanel>
   );
 }
 
@@ -248,14 +385,6 @@ function HeadlineChart({position}: {position: Position}) {
         </span>
       </div>
 
-      <p className="dim" style={{margin: "0 0 18px", maxWidth: "72ch", fontSize: "0.84rem"}}>
-        The two lines start together while the position sits at its inventory target, and
-        separate as it takes on one side. A pool AMM cannot draw the maroon line at all:
-        it has one price, and no notion of whose inventory is behind it. The y-axis is
-        zoomed to the data — the full separation here is a fraction of a percent, and it
-        would be invisible against a domain starting at zero.
-      </p>
-
       <PriceSeries
         fills={position.fills}
         currentMidWad={position.midWad}
@@ -264,8 +393,8 @@ function HeadlineChart({position}: {position: Position}) {
 
       {/* The price chart buries its own signal: the mid falls steeply across a
           one-direction series, and the separation is a small residual on a
-          large trend. These two tracks are that residual, and the inventory
-          it is a response to, plotted where they are the whole series. */}
+          large trend. These two tracks are that residual, and the inventory it
+          is a response to, plotted where they are the whole series. */}
       <SkewTrack
         fills={position.fills}
         currentMidWad={position.midWad}
@@ -276,6 +405,10 @@ function HeadlineChart({position}: {position: Position}) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// 03 — proof
+// ---------------------------------------------------------------------------
+
 function PositionDetail({position}: {position: Position}) {
   const [tokenIn, tokenOut] = position.tokens;
   const balance = (token?: string) =>
@@ -285,7 +418,7 @@ function PositionDetail({position}: {position: Position}) {
       : "0";
 
   return (
-    <section className="panel">
+    <section className="panel" style={{height: "100%"}}>
       <div className="panel__head">
         <h2>Position</h2>
         <span className={position.active ? "tag tag--live" : "tag tag--idle"}>
@@ -301,9 +434,7 @@ function PositionDetail({position}: {position: Position}) {
       <Field label="maker" value={shortHex(position.maker, 10, 6)} title={position.maker} />
       <Field
         label="inventory q"
-        value={
-          <span className="maroon-text">{formatSigned(position.inventoryImbalanceWad)}</span>
-        }
+        value={<span className="maroon-text">{formatSigned(position.inventoryImbalanceWad)}</span>}
         title={position.inventoryImbalanceWad}
       />
       <Field label="target" value={formatTokens(position.targetInventoryWad)} />
@@ -315,7 +446,10 @@ function PositionDetail({position}: {position: Position}) {
         value={formatDuration(position.horizonRemainingSecs)}
         title={`${position.horizonSecs}s total`}
       />
-      <Field label={`balance ${shortHex(tokenIn ?? "0x", 4, 3)}`} value={formatTokens(balance(tokenIn))} />
+      <Field
+        label={`balance ${shortHex(tokenIn ?? "0x", 4, 3)}`}
+        value={formatTokens(balance(tokenIn))}
+      />
       <Field
         label={`balance ${shortHex(tokenOut ?? "0x", 4, 3)}`}
         value={formatTokens(balance(tokenOut))}
@@ -324,12 +458,15 @@ function PositionDetail({position}: {position: Position}) {
       <p className="dim" style={{fontSize: "0.72rem", marginBottom: 0, marginTop: 14}}>
         Balances are reconstructed from Aqua&apos;s <span className="mono">Pushed</span>/
         <span className="mono">Pulled</span> ledger, never accumulated from swap deltas —
-        the latter measures flow rather than holdings, and makes every derived price
-        wrong.
+        the latter measures flow rather than holdings, and makes every derived price wrong.
       </p>
     </section>
   );
 }
+
+// ---------------------------------------------------------------------------
+// 04 — settlement
+// ---------------------------------------------------------------------------
 
 function FillsTable({position}: {position: Position}) {
   const fills = [...position.fills].reverse();
@@ -391,14 +528,6 @@ function FillsTable({position}: {position: Position}) {
           </table>
         </div>
       )}
-
-      <p className="dim" style={{fontSize: "0.72rem", marginBottom: 0, marginTop: 14}}>
-        Mid and reservation price are the state <em>before</em> each fill settled.
-        Aqua emits <span className="mono">Pushed</span>/<span className="mono">Pulled</span>{" "}
-        during settlement and <span className="mono">Swapped</span> after it, so these are
-        reconstructed by undoing the fill&apos;s own deltas — reading the store directly
-        would file the post-fill mid under a pre-fill name.
-      </p>
     </section>
   );
 }
@@ -459,38 +588,196 @@ function PositionsTable({positions}: {positions: Position[]}) {
   );
 }
 
-function Deployment({deployment}: {deployment: ReturnType<typeof loadDeployment>}) {
+// ---------------------------------------------------------------------------
+// 05 — stack
+// ---------------------------------------------------------------------------
+
+const IMPLEMENTATIONS = [
+  {
+    name: "AvellanedaStoikov.sol",
+    role: "Prices real swaps",
+    detail: "The instruction. 95 Foundry tests, including exhaustive quote/swap parity fuzzing."
+  },
+  {
+    name: "packages/strategy-sdk",
+    role: "The TypeScript port",
+    detail: "Encoders byte-verified against Solidity-generated fixtures. 125 tests."
+  },
+  {
+    name: "subgraph/src",
+    role: "The AssemblyScript port",
+    detail: "Publishes the index. Decoder checked against a real abi.encode(order)."
+  }
+];
+
+function Stack({deployment}: {deployment: ReturnType<typeof loadDeployment>}) {
   return (
-    <section className="panel panel--flat">
-      <div className="panel__head">
-        <h2>Deployment</h2>
+    <>
+      <Stagger className="grid grid--3">
+        {IMPLEMENTATIONS.map((impl) => (
+          <StaggerItem key={impl.name}>
+            <PressPanel className="step">
+              <span className="label" style={{color: "var(--maroon-lit)"}}>
+                {impl.role}
+              </span>
+              <h3 className="step__title mono" style={{textTransform: "none"}}>
+                {impl.name}
+              </h3>
+              <p className="step__body">{impl.detail}</p>
+            </PressPanel>
+          </StaggerItem>
+        ))}
+      </Stagger>
+
+      <Reveal delay={0.15} style={{marginTop: 24}}>
+        <div className="panel panel--flat">
+          <div className="panel__head">
+            <h2>Deployment</h2>
+          </div>
+
+          {deployment ? (
+            <>
+              <Field label="network" value={`${deployment.network} · ${deployment.chainId}`} />
+              <Field label="aqua" value={deployment.aqua} title={deployment.aqua} />
+              <Field
+                label="zyro router"
+                value={deployment.zyroRouter}
+                title={deployment.zyroRouter}
+              />
+              <Field
+                label="zyro lens"
+                value={deployment.zyroLens ?? "not deployed"}
+                title={deployment.zyroLens ?? undefined}
+              />
+              <Field label="start block" value={deployment.startBlock.toLocaleString()} />
+            </>
+          ) : (
+            <p className="dim" style={{margin: 0}}>
+              No <span className="mono">deployments/&lt;network&gt;.json</span>. Run{" "}
+              <span className="mono">node scripts/wire-addresses.mjs</span> after deploying.
+            </p>
+          )}
+        </div>
+      </Reveal>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Notices and footer
+// ---------------------------------------------------------------------------
+
+function SetupNotice() {
+  return (
+    <Reveal>
+      <section className="panel" style={{marginTop: 56}}>
+        <div className="panel__head">
+          <h2>Not configured</h2>
+        </div>
+        <p style={{marginTop: 0}}>
+          Set <span className="mono">SUBGRAPH_URL</span> and{" "}
+          <span className="mono">BASE_SEPOLIA_RPC_URL</span>, then restart. Both are read
+          server-side; neither reaches the browser.
+        </p>
+        <ol className="mono dim" style={{fontSize: "0.8rem", lineHeight: 1.9, paddingLeft: 20}}>
+          <li>forge script script/DeployZyroRouter.s.sol --broadcast</li>
+          <li>forge script script/SwapSeries.s.sol --broadcast --slow</li>
+          <li>node scripts/wire-addresses.mjs</li>
+          <li>cd subgraph &amp;&amp; npm run codegen &amp;&amp; npx graph deploy zyro</li>
+          <li>cp .env.example .env.local, then fill it in</li>
+        </ol>
+      </section>
+    </Reveal>
+  );
+}
+
+function ErrorNotice({message}: {message: string}) {
+  return (
+    <Reveal>
+      <section className="panel" style={{marginTop: 56, borderColor: "var(--maroon-lit)"}}>
+        <div className="panel__head">
+          <h2 style={{color: "var(--maroon-lit)"}}>Subgraph unreachable</h2>
+        </div>
+        <p className="mono" style={{margin: 0, fontSize: "0.82rem"}}>
+          {message}
+        </p>
+      </section>
+    </Reveal>
+  );
+}
+
+function EmptyIndex() {
+  return (
+    <Reveal style={{marginTop: 24}}>
+      <section className="panel">
+        <div className="panel__head">
+          <h2>Nothing indexed</h2>
+        </div>
+        <p style={{marginTop: 0, maxWidth: "66ch"}}>
+          The subgraph is reachable and has indexed no positions. Both silent failure modes
+          look exactly like this, so check them in order:
+        </p>
+        <ul style={{maxWidth: "66ch", lineHeight: 1.7}}>
+          <li>
+            <strong>The app filter.</strong> <span className="mono">ZYRO_APP</span> in{" "}
+            <span className="mono">subgraph/src/config.ts</span> must be the deployed
+            router. A stale value does not error — every event fails the filter and the
+            subgraph syncs to chainhead having stored nothing.
+          </li>
+          <li>
+            <strong>The program decode.</strong> If{" "}
+            <span className="mono">decodeStrategy</span> finds no Zyro instruction, the
+            position is skipped as legitimately not ours. Same symptom, different cause.
+          </li>
+          <li>
+            <strong>Nothing shipped yet.</strong> Run{" "}
+            <span className="mono">script/SwapSeries.s.sol</span>.
+          </li>
+        </ul>
+      </section>
+    </Reveal>
+  );
+}
+
+function Footer({deployment}: {deployment: ReturnType<typeof loadDeployment>}) {
+  return (
+    <footer className="footer">
+      <div className="footer__grid">
+        <div>
+          <h2 style={{fontSize: "clamp(1.6rem, 4vw, 2.6rem)"}}>
+            ZYRO<span style={{color: "var(--maroon-lit)"}}>.</span>
+          </h2>
+          <p className="dim" style={{maxWidth: "44ch", fontSize: "0.86rem"}}>
+            ETHOnline 2026. Inventory-aware dynamic liquidity as a native 1inch SwapVM
+            instruction.
+          </p>
+        </div>
+
+        <div>
+          <span className="label">Tracks</span>
+          <ul className="footer__list dim">
+            <li>1inch — SwapVM / Aqua</li>
+            <li>The Graph — subgraph + MCP</li>
+            <li>Uniswap — v4 hook</li>
+          </ul>
+        </div>
+
+        <div>
+          <span className="label">Repository</span>
+          <ul className="footer__list">
+            <li>
+              <a href="https://github.com/mithileshofficial06/zyro" target="_blank" rel="noreferrer">
+                github ↗
+              </a>
+            </li>
+            <li className="dim">{deployment?.network ?? "not deployed"}</li>
+          </ul>
+        </div>
       </div>
 
-      {deployment ? (
-        <>
-          <Field label="network" value={`${deployment.network} · ${deployment.chainId}`} />
-          <Field label="aqua" value={deployment.aqua} title={deployment.aqua} />
-          <Field label="zyro router" value={deployment.zyroRouter} title={deployment.zyroRouter} />
-          <Field
-            label="zyro lens"
-            value={deployment.zyroLens ?? "not deployed"}
-            title={deployment.zyroLens ?? undefined}
-          />
-          <Field label="start block" value={deployment.startBlock.toLocaleString()} />
-        </>
-      ) : (
-        <p className="dim" style={{margin: 0}}>
-          No <span className="mono">deployments/&lt;network&gt;.json</span>. Run{" "}
-          <span className="mono">node scripts/wire-addresses.mjs</span> after deploying.
-        </p>
-      )}
-
-      <p className="dim" style={{fontSize: "0.72rem", marginTop: 16, marginBottom: 0}}>
-        Read from the same generated record the subgraph&apos;s{" "}
-        <span className="mono">networks.json</span> and{" "}
-        <span className="mono">src/config.ts</span> come from. Duplicating the router
-        address into an env var reintroduces the drift that generation exists to remove.
-      </p>
-    </section>
+      <div style={{marginTop: 40, borderTop: "2px solid var(--line)", background: "var(--maroon)"}}>
+        <Marquee items={["ZYRO", "RESERVATION PRICE", "q = BALANCE − TARGET", "OPCODE 34"]} reverse />
+      </div>
+    </footer>
   );
 }

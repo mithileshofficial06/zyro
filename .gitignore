@@ -51,3 +51,7 @@ substreams/src/abi/*.rs
 
 # Local-chain broadcast artifacts (anvil). Real testnet/mainnet runs are kept.
 contracts/broadcast/*/31337/
+
+# Written by `next dev` on every run, not authored here.
+apps/console/AGENTS.md
+apps/console/CLAUDE.md
