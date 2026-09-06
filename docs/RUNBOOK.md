@@ -6,7 +6,7 @@ is already runnable and already checked in CI.
 The Graph's bar is stricter than 1inch's here. 1inch accepts a local fork; a
 subgraph indexes a public chain, and Studio cannot index anvil. So the Base
 Sepolia deployment is not a nice-to-have on this track — it is the first
-domino, and steps 4 through 7 are all downstream of it.
+domino, and steps 4 through 8 are all downstream of it.
 
 ## Before you start
 
@@ -164,14 +164,39 @@ The AssemblyScript kernel disagrees with the Solidity. The verifier's third
 column says which side the TypeScript SDK is on, which localises it to one
 port rather than to a shared misreading.
 
-## 6. Point an agent at it **[needs a key]**
+## 6. Deploy the v4 hook **[needs a key]**
+
+Separate from step 1 on purpose. `ZyroRouter` has 2,446 bytes of EIP-170
+headroom, and compiling both under v4-core's optimizer profile spends it.
+
+```bash
+export POOL_MANAGER=0x...   # the chain's v4 PoolManager
+
+forge script script/DeployZyroHook.s.sol   --rpc-url $BASE_SEPOLIA_RPC_URL   --private-key $PRIVATE_KEY   --broadcast --verify
+```
+
+**A hook's address is a constraint, not an output.** The `PoolManager` reads
+permissions out of the low 14 bits of the hook's own address, so the script
+mines a CREATE2 salt until the address carries the four flags `ZyroSkewHook`
+declares, and deploys with it. The salt is mined against Foundry's
+deterministic proxy at `0x4e59b448…` — the address a salted `new` in a
+broadcast actually deploys from — not against your EOA.
+
+`ZyroSkewHook.t.sol` places the hook with `deployCodeTo`, which is a cheatcode.
+It proves the hook works at a valid address; it says nothing about reaching
+one. That is why this script exists and why `DeployZyroHook.t.sol` tests it.
+
+Then initialise a pool with `LPFeeLibrary.DYNAMIC_FEE_FLAG` and this hook, and
+call `configurePool` as the owner. Configuration is owner-only and re-runnable.
+
+## 7. Point an agent at it **[needs a key]**
 
 See [subgraph/mcp/README.md](../subgraph/mcp/README.md). Needs a Gateway API
 key from Studio, and prefers the **deployment** id over the subgraph id — a
 subgraph id resolves to whatever version is current, so a redeploy silently
 changes what the agent is querying.
 
-## 7. Run the console
+## 8. Run the console
 
 ```bash
 cd apps/console
@@ -195,7 +220,7 @@ through the exact series step 2 executes. It is a development aid: the
 verification panel will fail against it, correctly, because there is no chain
 behind it.
 
-## 8. Substreams — optional
+## 9. Substreams — optional
 
 Genuinely optional, and honestly labelled: `graph_out` cannot yet serve
 `schema.graphql`. See [substreams/README.md](../substreams/README.md) for the
