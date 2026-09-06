@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  contracts:
+    name: forge test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show forge version
+        run: forge --version
+
+      - name: Check formatting
+        working-directory: contracts
+        run: forge fmt --check
+        continue-on-error: true
+
+      - name: Build
+        working-directory: contracts
+        run: forge build --sizes
+
+      - name: Test
+        working-directory: contracts
+        run: forge test -vvv
+
+  sdk:
+    name: sdk tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm ci --ignore-scripts
+        continue-on-error: true
+
+      - name: Test
+        run: npm test --workspaces --if-present

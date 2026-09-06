@@ -1,0 +1,38 @@
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+script = "script"
+libs = ["lib", "node_modules"]
+
+# swap-vm / aqua pin exactly 0.8.30; v4-core pins exactly 0.8.26.
+# Let each source tree select its own compiler rather than forcing one.
+auto_detect_solc = true
+optimizer = true
+optimizer_runs = 1_000_000
+via_ir = true
+
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+[fuzz]
+runs = 2000
+
+[invariant]
+runs = 256
+depth = 32
+
+# v4-core's Pool.sol hits a stack-too-deep Yul error under via_ir unless it is
+# compiled with the very high optimizer_runs its own foundry.toml uses.
+# See ZYRO_BUILD_SPEC.md §15 ("solc conflict").
+[[profile.default.compilation_restrictions]]
+paths = "lib/v4-core/src/**"
+optimizer_runs = 44_444_444
+
+[profile.ci]
+verbosity = 3
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+int_types = "long"

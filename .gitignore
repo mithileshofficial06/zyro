@@ -1,0 +1,36 @@
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/dry-run/
+contracts/.env
+
+# Solidity deps resolved via npm (swap-vm / aqua) and forge (v4, OZ)
+node_modules/
+contracts/lib/
+contracts/node_modules/
+
+# TypeScript / JS
+dist/
+build/
+*.tsbuildinfo
+.pnpm-store/
+coverage/
+
+# Subgraph codegen
+subgraph/generated/
+subgraph/build/
+
+# Next.js console
+apps/console/.next/
+apps/console/out/
+
+# Environment / secrets — never commit a key
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
