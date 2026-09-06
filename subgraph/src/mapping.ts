@@ -63,6 +63,20 @@ function balanceOf(strategyHash: Bytes, token: Bytes): BigInt {
   return b == null ? BigInt.zero() : b.amount;
 }
 
+/**
+ * The balance a token held immediately before this fill settled.
+ *
+ * Settlement has already been indexed, so this subtracts the fill's own
+ * deltas back out. Written per-token rather than per-side so it stays correct
+ * whichever way round the fill ran relative to the canonical direction.
+ */
+function preFillBalance(position: Position, token: Bytes, event: Swapped): BigInt {
+  let current = balanceOf(position.id, token);
+  if (token.equals(event.params.tokenIn)) return current.minus(event.params.amountIn);
+  if (token.equals(event.params.tokenOut)) return current.plus(event.params.amountOut);
+  return current;
+}
+
 function paramsOf(position: Position): Params {
   return new Params(
     position.gammaWad,
@@ -114,6 +128,38 @@ function refreshPricing(
   position.lastUpdatedTimestamp = timestamp;
 }
 
+/**
+ * Records a token as funding this position, preserving first-seen order.
+ *
+ * `tokens[0]`/`tokens[1]` become the canonical pricing direction and never
+ * change afterwards.
+ */
+function noteToken(position: Position, token: Bytes): void {
+  let tokens = position.tokens;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].equals(token)) return;
+  }
+  // AssemblyScript entity array fields have to be reassigned wholesale;
+  // mutating the value a getter returned does not write back.
+  tokens.push(token);
+  position.tokens = tokens;
+}
+
+/**
+ * Refreshes pricing in the position's own canonical direction.
+ *
+ * @dev Used everywhere except the pre-fill snapshot. Taking the direction from
+ *      the position rather than from whatever event triggered the refresh is
+ *      what keeps a reverse-direction fill from inverting the published series.
+ *      A no-op until two tokens are funded — a one-token position has no mid.
+ */
+function refreshCanonical(position: Position, timestamp: BigInt): boolean {
+  let tokens = position.tokens;
+  if (tokens.length < 2) return false;
+  refreshPricing(position, tokens[0], tokens[1], timestamp);
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Aqua: the position lifecycle
 // ---------------------------------------------------------------------------
@@ -121,11 +167,17 @@ function refreshPricing(
 /**
  * A strategy has been shipped.
  *
- * @dev **Aqua emits `Pushed` before `Shipped` within the same `ship()`
- *      transaction**, so any push that arrived first was buffered in a
- *      `PendingPush` and is drained here. Skipping that leaves the position
- *      looking empty and every price derived from it is computed against a zero
- *      balance.
+ * @dev **Aqua emits `Shipped` *before* the `Pushed` events of the same
+ *      `ship()`** — `Aqua.sol` emits `Shipped` at the top of `ship()` and then
+ *      one `Pushed` per token inside the funding loop. So at this point the
+ *      position has no balances at all and there is nothing to price: the
+ *      reservation price is published by `handlePushed` as the funding lands,
+ *      not here.
+ *
+ *      The `PendingPush` drain is kept as defence for the reverse order. It
+ *      cannot fire against this Aqua — `push()` reverts on a strategy that has
+ *      not been shipped — but it costs one store read and it is the difference
+ *      between silent zero balances and correct ones if that ever changes.
  */
 export function handleShipped(event: Shipped): void {
   if (!isZyroApp(event.params.app)) return;
@@ -151,6 +203,7 @@ export function handleShipped(event: Shipped): void {
   position.boundWad = s.boundWad;
   position.startTimestamp = s.startTimestamp;
   position.program = s.program;
+  position.tokens = [];
 
   position.inventoryImbalanceWad = BigInt.zero();
   position.midWad = BigInt.zero();
@@ -164,15 +217,12 @@ export function handleShipped(event: Shipped): void {
   position.lastUpdatedTimestamp = event.block.timestamp;
   position.save();
 
-  // Draining first, then pricing: a freshly shipped position must publish a
-  // real reservation price immediately, not a zero that only becomes correct
-  // after somebody happens to trade against it. A solver querying between the
-  // ship and the first fill would otherwise route on a mid of zero.
   let funded = drainPendingPushes(hash, event.block.timestamp);
-  if (funded.length >= 2) {
-    refreshPricing(position, funded[0], funded[1], event.block.timestamp);
-    position.save();
+  for (let i = 0; i < funded.length; i++) {
+    noteToken(position, funded[i]);
   }
+  refreshCanonical(position, event.block.timestamp);
+  position.save();
 
   let protocol = loadProtocol();
   protocol.positionCount = protocol.positionCount.plus(BigInt.fromI32(1));
@@ -255,6 +305,13 @@ export function handlePushed(event: Pushed): void {
   let b = loadBalance(hash, event.params.token, event.block.timestamp);
   b.amount = b.amount.plus(event.params.amount);
   b.save();
+
+  // The funding half of `ship()` lands here, so this is where a new position
+  // first becomes priceable. Republishing on every push also keeps the
+  // reservation price correct across a swap settlement, which pushes tokenIn.
+  noteToken(position, event.params.token);
+  refreshCanonical(position, event.block.timestamp);
+  position.save();
 }
 
 /** Accumulates an early push, merging repeats of the same token. */
@@ -309,6 +366,10 @@ export function handlePulled(event: Pulled): void {
     b.amount = BigInt.zero();
   }
   b.save();
+
+  noteToken(position, event.params.token);
+  refreshCanonical(position, event.block.timestamp);
+  position.save();
 }
 
 // ---------------------------------------------------------------------------
@@ -318,16 +379,22 @@ export function handlePulled(event: Pulled): void {
 /**
  * A swap executed against a position.
  *
- * @dev **The mid and reservation price are captured before the fill's deltas
- *      are applied.** Writing them afterwards stores the post-fill mid under a
- *      pre-fill name — and this is the exact series the headline chart plots
- *      (mid and reservation price sitting on top of each other when balanced,
- *      separating as inventory drifts), so getting it wrong is not a subtle
- *      cosmetic issue.
+ * @dev **The fill's deltas have already been applied by the time this runs, so
+ *      the pre-fill state has to be reconstructed rather than read.**
+ *      `SwapVM._swap` settles first and emits last: `_transferIn`/`_transferOut`
+ *      call `AQUA.push`/`AQUA.pull`, whose `Pushed`/`Pulled` logs precede
+ *      `Swapped` in the same transaction. Reading the store here therefore
+ *      yields post-fill balances, and storing those under `midWadAtFill` puts
+ *      the post-fill mid behind a pre-fill name — which is the exact series the
+ *      headline chart plots (mid and reservation price on top of each other
+ *      when balanced, separating as inventory drifts). Not a cosmetic issue.
  *
- *      Balances themselves are *not* updated here. Aqua emits `Pushed`/`Pulled`
- *      at settlement and those handlers own the ledger; touching balances here
- *      too would double-count every fill.
+ *      The reversal is exact because settlement moves precisely the amounts
+ *      this event reports: `+amountIn` to the `tokenIn` balance, `-amountOut`
+ *      from the `tokenOut` balance.
+ *
+ *      Balances themselves are *not* updated here — `handlePushed`/
+ *      `handlePulled` own the ledger, and touching it here would double-count.
  */
 export function handleSwapped(event: Swapped): void {
   let position = Position.load(event.params.orderHash);
@@ -337,9 +404,15 @@ export function handleSwapped(event: Swapped): void {
   let tokenOut = event.params.tokenOut;
   let timestamp = event.block.timestamp;
 
-  // --- Pre-fill state, captured first ---------------------------------------
-  let balanceIn = balanceOf(position.id, tokenIn);
-  let balanceOut = balanceOf(position.id, tokenOut);
+  // --- Pre-fill state, reconstructed by undoing settlement ------------------
+  // Quoted in the position's own canonical direction, not the fill's: a
+  // reverse-direction fill must not invert the published series.
+  let canonical = position.tokens;
+  let quoteIn = canonical.length >= 2 ? canonical[0] : tokenIn;
+  let quoteOut = canonical.length >= 2 ? canonical[1] : tokenOut;
+
+  let balanceIn = preFillBalance(position, quoteIn, event);
+  let balanceOut = preFillBalance(position, quoteOut, event);
   let p = paramsOf(position);
   let elapsed = elapsedAt(position, timestamp);
 
@@ -366,7 +439,9 @@ export function handleSwapped(event: Swapped): void {
   fill.save();
 
   // --- Then refresh the position's published state --------------------------
-  refreshPricing(position, tokenIn, tokenOut, timestamp);
+  // Already done by the settlement handlers; repeated here so a fill still
+  // republishes if a future Aqua stops emitting Pushed/Pulled at settlement.
+  refreshCanonical(position, timestamp);
   position.save();
 
   let protocol = loadProtocol();

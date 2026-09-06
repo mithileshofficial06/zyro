@@ -29,6 +29,18 @@ type Position @entity(immutable: false) {
   """
   program: Bytes!
 
+  """
+  Tokens funded into this position, in the order Aqua pushed them during
+  `ship()`. `tokens[0]`/`tokens[1]` are the canonical pricing direction: every
+  published mid and reservation price is quoted as `tokens[1]` per `tokens[0]`,
+  and `inventoryImbalanceWad` is measured in `tokens[0]`.
+
+  Fixed at ship rather than taken from the most recent fill. A fill in the
+  opposite direction would otherwise invert the published series mid-chart,
+  which reads as the price collapsing rather than the direction flipping.
+  """
+  tokens: [Bytes!]!
+
   # --- Live pricing state ---------------------------------------------------
   """
   Signed inventory imbalance for the canonical direction, `balanceIn - target`.
