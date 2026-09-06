@@ -21,7 +21,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SOURCE = join(here, "../../contracts/test/fixtures/kernel.json");
 const OUT = join(here, "../tests/kernel-fixtures.ts");
 
+const ORDER_SOURCE = join(here, "../../contracts/test/fixtures/order.json");
+const ORDER_OUT = join(here, "../tests/order-fixture.ts");
+
 const fixtures = JSON.parse(readFileSync(SOURCE, "utf8"));
+const order = JSON.parse(readFileSync(ORDER_SOURCE, "utf8"));
 
 const header = `// GENERATED FILE — DO NOT EDIT.
 //
@@ -120,4 +124,52 @@ const rows = fixtures
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, `${header}${rows}\n  ];\n}\n`, "utf8");
 
+// --- The real strategy blob -------------------------------------------------
+//
+// `decodeStrategy` is the highest-risk code in the subgraph: an ABI decode, a
+// program offset read out of a packed traits word, and an opcode walk. Every
+// one of those fails silently — a wrong offset still finds *some* opcode/length
+// pairs, so the subgraph syncs clean and publishes nothing. Testing it against
+// synthetic bytes proves only that the test author and the decoder agree.
+//
+// So the expectation is the exact `abi.encode(order)` that `ship()` will carry,
+// written by `OrderFixtures.t.sol` from the real `MakerTraitsLib.build`.
+const orderFixture = `// GENERATED FILE — DO NOT EDIT.
+//
+// Produced by \`node scripts/generate-fixtures.mjs\` from
+// \`contracts/test/fixtures/order.json\`, written by a live run of
+// \`OrderFixtures.t.sol\`.
+
+import {BigInt, Bytes} from "@graphprotocol/graph-ts";
+
+/** \`abi.encode(order)\` — byte-for-byte what Aqua's \`Shipped.strategy\` carries. */
+export const STRATEGY: Bytes = Bytes.fromHexString("${order.strategy}");
+
+/** \`keccak256(strategy)\`, which is also the SwapVM order hash. */
+export const STRATEGY_HASH: Bytes = Bytes.fromHexString("${order.strategyHash}");
+
+/** \`order.data\`. With no hooks configured this is exactly the program. */
+export const PROGRAM: Bytes = Bytes.fromHexString("${order.program}");
+
+export const MAKER: Bytes = Bytes.fromHexString("${order.maker.toLowerCase()}");
+
+// The values an off-chain decoder must recover from STRATEGY.
+export const EXPECTED_GAMMA_WAD: BigInt = BigInt.fromString("${order.expected.gammaWad}");
+export const EXPECTED_SIGMA_SQ_WAD: BigInt = BigInt.fromString("${order.expected.sigmaSqWad}");
+export const EXPECTED_BASE_SPREAD_WAD: BigInt = BigInt.fromString("${order.expected.baseSpreadWad}");
+export const EXPECTED_TARGET_INVENTORY_WAD: BigInt = BigInt.fromString("${order.expected.targetInventoryWad}");
+export const EXPECTED_BOUND_WAD: BigInt = BigInt.fromString("${order.expected.boundWad}");
+export const EXPECTED_HORIZON_SECS: BigInt = BigInt.fromString("${order.expected.horizonSecs}");
+export const EXPECTED_START_TIMESTAMP: BigInt = BigInt.fromString("${order.expected.startTimestamp}");
+export const EXPECTED_PROGRAM_OFFSET: i32 = ${order.expected.programOffset};
+
+export const TOKEN_IN: Bytes = Bytes.fromHexString("${order.tokens[0].toLowerCase()}");
+export const TOKEN_OUT: Bytes = Bytes.fromHexString("${order.tokens[1].toLowerCase()}");
+export const AMOUNT_IN: BigInt = BigInt.fromString("${order.amounts[0]}");
+export const AMOUNT_OUT: BigInt = BigInt.fromString("${order.amounts[1]}");
+`;
+
+writeFileSync(ORDER_OUT, orderFixture, "utf8");
+
 console.log(`wrote ${OUT} (${fixtures.length} fixtures)`);
+console.log(`wrote ${ORDER_OUT}`);

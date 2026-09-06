@@ -154,6 +154,30 @@ contract OrderFixturesTest is ZyroTestBase {
         );
     }
 
+    /// @dev The values an off-chain decoder must recover from `strategy`.
+    ///
+    ///      Written by the Solidity rather than restated in each port, because
+    ///      a hand-copied expectation only proves the author read both
+    ///      implementations the same wrong way. `decodeStrategy` walks an
+    ///      ABI-encoded order, reads the program offset out of the traits word
+    ///      and steps the opcode table -- three places where a mistake yields a
+    ///      plausible wrong number rather than an error, or no position at all.
+    function _expectedJson() internal pure returns (string memory) {
+        return string.concat(
+            '  "expected":{\n',
+            '    "gammaWad":"', vm.toString(uint256(uint128(GAMMA_WAD))), '",\n',
+            '    "sigmaSqWad":"', vm.toString(uint256(uint128(SIGMA_SQ_WAD))), '",\n',
+            '    "baseSpreadWad":"', vm.toString(uint256(uint128(BASE_SPREAD_WAD))), '",\n',
+            '    "targetInventoryWad":"', vm.toString(uint256(1_000e18)), '",\n',
+            '    "boundWad":"', vm.toString(uint256(500e18)), '",\n',
+            '    "horizonSecs":', vm.toString(uint256(HORIZON)), ",\n",
+            '    "startTimestamp":', vm.toString(uint256(FIXED_START)), ",\n",
+            '    "programOffset":',
+            vm.toString((uint256(MakerTraits.unwrap(_fixedOrder().traits)) >> 208) & 0xffff),
+            "\n  },\n"
+        );
+    }
+
     function _txJson() internal view returns (string memory) {
         bytes memory strategy = abi.encode(_fixedOrder());
         address[] memory tokens = _tokens();
@@ -177,7 +201,10 @@ contract OrderFixturesTest is ZyroTestBase {
     }
 
     function test_WriteFixtures() public {
-        vm.writeFile(FIXTURE_PATH, string.concat("{\n", _identityJson(), _txJson(), "}\n"));
+        vm.writeFile(
+            FIXTURE_PATH,
+            string.concat("{\n", _identityJson(), _expectedJson(), _txJson(), "}\n")
+        );
         console2.log("wrote", FIXTURE_PATH);
     }
 }

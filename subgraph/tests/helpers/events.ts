@@ -12,10 +12,15 @@ import {Swapped} from "../../generated/ZyroRouter/ZyroRouter";
  *      only way to be sure the handlers read the fields they think they do.
  */
 
-/** Matches `src/config.ts` — the handlers filter on this. */
-export const ZYRO_APP: Address = Address.fromString(
-  "0x0000000000000000000000000000000000000000"
-);
+/**
+ * Re-exported from `src/config.ts` rather than restated.
+ *
+ * The handlers filter on `ZYRO_APP`, and that constant is rewritten per
+ * deployment. A second copy here would agree with it exactly once — the day it
+ * was written — and every test would keep passing against an app address the
+ * deployed subgraph no longer uses.
+ */
+export {ZYRO_APP} from "../../src/config";
 
 export const MAKER: Address = Address.fromString("0x00000000000000000000000000000000000000a1");
 export const TAKER: Address = Address.fromString("0x00000000000000000000000000000000000000b2");

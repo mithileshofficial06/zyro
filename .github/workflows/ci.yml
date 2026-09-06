@@ -99,7 +99,8 @@ jobs:
         run: npm run fixtures
 
       - name: Fail if generated fixtures are stale
-        run: git diff --exit-code -- contracts/test/fixtures/ subgraph/tests/kernel-fixtures.ts
+        run: |
+          git diff --exit-code --             contracts/test/fixtures/             subgraph/tests/kernel-fixtures.ts             subgraph/tests/order-fixture.ts
 
       - name: Codegen
         working-directory: subgraph
