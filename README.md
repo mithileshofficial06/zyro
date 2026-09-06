@@ -39,30 +39,81 @@ Not *"we invented inventory-aware market making."* The honest claim:
 
 ## Status
 
-Build in progress. See [`ZYRO_BUILD_SPEC.md`](ZYRO_BUILD_SPEC.md) for the full
-implementation specification and [§26](ZYRO_BUILD_SPEC.md) for build order.
+Everything that can be built without a funded key is built and tested. The
+remaining work is a deployment — see [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 | Phase | Component | State |
 |---|---|---|
-| 0 | Repo hygiene, CI, license | in progress |
-| 1 | Pricing kernel + fuzz suite | — |
-| 2 | Read `swap-vm` source | — |
-| 3 | Instruction + append-only router + quote/swap parity | — |
-| 4 | Ship & swap on Base Sepolia | — |
-| 5 | TypeScript SDK, byte-verified against Solidity fixtures | — |
-| 6 | Subgraph + Subgraph MCP | — |
-| 7 | Uniswap v4 hook | — |
-| 8 | Competitive routing simulation | — |
-| 9 | Console | — |
+| 0 | Repo hygiene, CI, license | done |
+| 1 | Pricing kernel + fuzz suite | done |
+| 2 | Read `swap-vm` source | done |
+| 3 | Instruction + append-only router + quote/swap parity | done |
+| 4 | Ship & swap on Base Sepolia | scripted; **needs a funded key** |
+| 5 | TypeScript SDK, byte-verified against Solidity fixtures | done |
+| 6 | Subgraph + Subgraph MCP | mappings done and tested; **needs a deployment** |
+| 7 | Uniswap v4 hook | done |
+| 8 | Competitive routing simulation | done |
+| 9 | Console | done |
+
+`forge test` runs 94 tests, `npm test` runs 125, and CI additionally runs the
+matchstick suite (which has no Windows binary), builds the Substreams crate
+(which cannot compile on Windows at all) and builds the console.
+
+## Correctness, and why it needed a second opinion
+
+A subgraph cannot demonstrate its own correctness, and both of the bugs this
+repository shipped in its mappings produced a subgraph that synced to chainhead
+in perfect health while publishing wrong numbers. One published a reservation
+price of zero for every position until something traded against it; the other
+filed post-fill prices under pre-fill names, in the exact series the headline
+chart plots.
+
+Neither threw. Neither failed a health check. Both came from assuming an event
+order rather than reading it — see [`docs/EVENT-ORDER.md`](docs/EVENT-ORDER.md),
+which closes the last open ⚠ VERIFY in the build spec against the vendored
+source.
+
+So there are now three independent implementations of the same kernel and a way
+to make them disagree out loud:
+
+| | |
+|---|---|
+| `contracts/src/libs/AvellanedaStoikov.sol` | prices real swaps |
+| `packages/strategy-sdk` | the TypeScript port |
+| `subgraph/src` | the AssemblyScript port that publishes the index |
+
+`ZyroLens` reads `AQUA.safeBalances` and runs the Solidity library, so
+`scripts/verify-subgraph.mjs` and the console's *Index vs chain* panel compare
+all three at the block the index has reached — never at chainhead, which would
+report a lagging subgraph as a bug.
+
+## Quick start
+
+```bash
+# contracts and SDK — no key needed
+cd contracts && forge test
+cd .. && npm test
+
+# the console, against a mock driven by the real kernel
+cd apps/console && npm install
+node scripts/mock-subgraph.mjs                  # terminal 1
+SUBGRAPH_URL=http://localhost:4444 npm run dev  # terminal 2
+```
+
+Then [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for the deployment.
 
 ## Layout
 
 ```
-contracts/          Foundry project — the kernel, the instruction, the router, the hook
-packages/           TypeScript SDK
-subgraph/           The Graph subgraph + MCP config
-apps/console/       Landing, simulation receipt, live position gauge
-FEEDBACK/           Sponsor feedback, written as friction is hit
+contracts/          Foundry project — the kernel, the instruction, the router,
+                    the v4 hook, and ZyroLens (the on-chain second opinion)
+packages/           TypeScript SDK — encoders and the kernel port
+subgraph/           The Graph subgraph, matchstick suite, MCP config
+substreams/         Substreams package — decoder done, projection partial
+apps/console/       Next.js console: the price series, and index vs chain
+scripts/            wire-addresses (generates the deployment wiring),
+                    verify-subgraph (three-way correctness check)
+docs/               RUNBOOK, EVENT-ORDER, BENCHMARK, source verification
 ```
 
 ## What Zyro does not claim
