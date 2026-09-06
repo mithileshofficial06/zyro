@@ -12,6 +12,20 @@ export {
 } from "./instructions.ts";
 
 export {
+  applyInventorySkew,
+  effectivePriceWad,
+  halfSpreadWad,
+  midFromBalancesWad,
+  recenterBalances,
+  remaining,
+  reservationPriceWad,
+  riskTermWad,
+  softBoundPenaltyBps,
+  sqrt,
+  type KernelParams,
+} from "./kernel.ts";
+
+export {
   EMPTY,
   STOCK_AQUA_INSTRUCTIONS,
   ZYRO_OPCODE,

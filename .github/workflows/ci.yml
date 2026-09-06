@@ -51,12 +51,13 @@ jobs:
         working-directory: contracts
         run: forge test -vv
 
-      # The fixtures are the SDK's source of truth for byte-parity. If a change
-      # to the Solidity encoder alters them, the committed copy must be updated
-      # in the same commit — otherwise the SDK is being checked against a stale
+      # The fixtures are the off-chain implementations' source of truth — for
+      # wire-format bytes and for the kernel's arithmetic. If a change to the
+      # Solidity alters them, the committed copies must be updated in the same
+      # commit; otherwise the SDK and the subgraph are checked against a stale
       # expectation and the cross-language guarantee is worthless.
-      - name: Fail if the committed encoding fixtures are stale
-        run: git diff --exit-code -- contracts/test/fixtures/encoding.json
+      - name: Fail if the committed fixtures are stale
+        run: git diff --exit-code -- contracts/test/fixtures/
 
       - name: Test SDK
         run: npm test
