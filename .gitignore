@@ -36,3 +36,8 @@ apps/console/out/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Subgraph
+subgraph/generated/
+subgraph/build/
+subgraph/node_modules/

@@ -1,0 +1,149 @@
+"""
+A Zyro position: one maker's strategy, shipped to Aqua and priced by the
+`ZyroInventorySkew` instruction.
+
+The `id` is the Aqua `strategyHash`, which is `keccak256(strategy)` and the same
+number as the SwapVM order hash in Aqua mode — the key `AQUA.safeBalances` uses.
+"""
+type Position @entity(immutable: false) {
+  id: Bytes!
+
+  maker: Bytes!
+  app: Bytes!
+
+  "Whether the position is still shipped. Set false on Docked."
+  active: Boolean!
+
+  # --- Parameters, decoded from the shipped program -------------------------
+  gammaWad: BigInt!
+  sigmaSqWad: BigInt!
+  baseSpreadWad: BigInt!
+  targetInventoryWad: BigInt!
+  boundWad: BigInt!
+  horizonSecs: BigInt!
+  startTimestamp: BigInt!
+
+  """
+  Raw program bytes, kept so a consumer can re-derive anything this schema
+  does not expose without re-fetching the transaction.
+  """
+  program: Bytes!
+
+  # --- Live pricing state ---------------------------------------------------
+  """
+  Signed inventory imbalance for the canonical direction, `balanceIn - target`.
+  This is the number the whole mechanism exists to price around, and the one
+  no pool AMM can expose.
+  """
+  inventoryImbalanceWad: BigInt!
+
+  "Mid implied by the current balance pair, WAD."
+  midWad: BigInt!
+
+  """
+  Reservation price at the last update, WAD. Re-derived here with the same
+  arithmetic the instruction runs on-chain, so a solver can route on it
+  without re-implementing Avellaneda–Stoikov itself.
+  """
+  reservationPriceWad: BigInt!
+
+  "Half-spread at the last update, an absolute WAD price offset."
+  halfSpreadWad: BigInt!
+
+  "Soft-bound penalty at the last update, in basis points. Exposed side only."
+  penaltyBps: BigInt!
+
+  """
+  Seconds left in the quoting horizon. At zero the position has stopped
+  defending itself and quotes as an ordinary constant-product AMM.
+  """
+  horizonRemainingSecs: BigInt!
+
+  createdAtBlock: BigInt!
+  createdAtTimestamp: BigInt!
+  lastUpdatedTimestamp: BigInt!
+
+  balances: [PositionBalance!]! @derivedFrom(field: "position")
+  fills: [Fill!]! @derivedFrom(field: "position")
+}
+
+"""
+Per-token balance of a position.
+
+Reconstructed exclusively from Aqua's `Pushed`/`Pulled` events, which are the
+authoritative per-strategy ledger. It is deliberately *not* accumulated from
+`Swapped` deltas: doing that starts from zero and measures flow rather than
+holdings, which makes every derived reservation price wrong.
+"""
+type PositionBalance @entity(immutable: false) {
+  id: Bytes!
+  position: Position!
+  token: Bytes!
+  amount: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+"""
+Pushes that arrived before the position existed.
+
+Aqua emits `Pushed` before `Shipped` within the same `ship()` transaction, so
+early pushes are buffered here and drained when the position is created.
+Without this the initial balances are silently lost and every published price
+is computed from a position that looks empty.
+
+`tokens` and `amounts` are parallel arrays rather than separate entities
+because a store cannot be enumerated: draining has to be able to find every
+buffered token from the strategy hash alone, and a `ship()` funds at least
+two.
+"""
+type PendingPush @entity(immutable: false) {
+  "The strategy hash. One buffer per position being shipped."
+  id: Bytes!
+  tokens: [Bytes!]!
+  amounts: [BigInt!]!
+}
+
+"""
+One fill against a position.
+
+`midWadAtFill` and `reservationPriceWadAtFill` are captured **before** the
+fill's deltas are applied. Capturing them afterwards stores the post-fill mid
+under a pre-fill name, which is exactly the number the headline chart plots.
+"""
+type Fill @entity(immutable: true) {
+  id: Bytes!
+  position: Position!
+
+  taker: Bytes!
+  tokenIn: Bytes!
+  tokenOut: Bytes!
+  amountIn: BigInt!
+  amountOut: BigInt!
+
+  "Mid immediately before this fill, WAD."
+  midWadAtFill: BigInt!
+
+  "Reservation price immediately before this fill, WAD."
+  reservationPriceWadAtFill: BigInt!
+
+  "Signed inventory imbalance immediately before this fill."
+  inventoryImbalanceWadAtFill: BigInt!
+
+  "Whether this fill hit the exposed side (q >= 0) or the covered side."
+  exposed: Boolean!
+
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+"""
+Protocol-wide counters, so the console can render headline numbers without
+paginating every position.
+"""
+type Protocol @entity(immutable: false) {
+  id: Bytes!
+  positionCount: BigInt!
+  activePositionCount: BigInt!
+  fillCount: BigInt!
+}
