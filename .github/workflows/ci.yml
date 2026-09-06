@@ -61,3 +61,56 @@ jobs:
 
       - name: Test SDK
         run: npm test
+
+  subgraph:
+    name: subgraph
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Install swap-vm Solidity dependencies
+        working-directory: contracts/lib/swap-vm
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      # The subgraph's AssemblyScript kernel is checked against the Solidity's
+      # own answers, so the fixtures have to exist before its tests run.
+      - name: Regenerate kernel fixtures from the contracts
+        working-directory: contracts
+        run: forge test --match-path 'test/*Fixtures.t.sol'
+
+      - name: Install subgraph dependencies
+        working-directory: subgraph
+        run: npm install --no-audit --no-fund
+
+      - name: Transcribe fixtures to AssemblyScript
+        working-directory: subgraph
+        run: npm run fixtures
+
+      - name: Fail if generated fixtures are stale
+        run: git diff --exit-code -- contracts/test/fixtures/ subgraph/tests/kernel-fixtures.ts
+
+      - name: Codegen
+        working-directory: subgraph
+        run: npm run codegen
+
+      # Matchstick ships no Windows binary, so these cannot run on a Windows
+      # dev machine without Docker. Linux CI is where they actually execute.
+      - name: Unit tests (matchstick)
+        working-directory: subgraph
+        run: npm test
+
+      - name: Build
+        working-directory: subgraph
+        run: npm run build

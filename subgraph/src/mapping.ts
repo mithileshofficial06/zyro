@@ -164,7 +164,15 @@ export function handleShipped(event: Shipped): void {
   position.lastUpdatedTimestamp = event.block.timestamp;
   position.save();
 
-  drainPendingPushes(hash, event.block.timestamp);
+  // Draining first, then pricing: a freshly shipped position must publish a
+  // real reservation price immediately, not a zero that only becomes correct
+  // after somebody happens to trade against it. A solver querying between the
+  // ship and the first fill would otherwise route on a mid of zero.
+  let funded = drainPendingPushes(hash, event.block.timestamp);
+  if (funded.length >= 2) {
+    refreshPricing(position, funded[0], funded[1], event.block.timestamp);
+    position.save();
+  }
 
   let protocol = loadProtocol();
   protocol.positionCount = protocol.positionCount.plus(BigInt.fromI32(1));
@@ -179,9 +187,9 @@ export function handleShipped(event: Shipped): void {
  * because a store cannot be enumerated — the drain has to reach every buffered
  * token knowing only the hash, and a `ship()` funds at least two.
  */
-function drainPendingPushes(strategyHash: Bytes, timestamp: BigInt): void {
+function drainPendingPushes(strategyHash: Bytes, timestamp: BigInt): Bytes[] {
   let pending = PendingPush.load(strategyHash);
-  if (pending == null) return;
+  if (pending == null) return [];
 
   let tokens = pending.tokens;
   let amounts = pending.amounts;
@@ -203,6 +211,8 @@ function drainPendingPushes(strategyHash: Bytes, timestamp: BigInt): void {
   pending.tokens = [];
   pending.amounts = [];
   pending.save();
+
+  return tokens;
 }
 
 export function handleDocked(event: Docked): void {
