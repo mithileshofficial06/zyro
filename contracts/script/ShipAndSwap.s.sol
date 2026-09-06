@@ -148,16 +148,14 @@ contract ShipAndSwap is NetworkConfig {
         takerArgs.isFirstTransferFromTaker = true;
         bytes memory takerData = TakerTraitsLib.build(takerArgs);
 
-        (, uint256 quotedOut,) = router.quote(
-            order, address(tokenIn), address(tokenOut), SWAP_AMOUNT, takerData
-        );
+        (, uint256 quotedOut,) =
+            router.quote(order, address(tokenIn), address(tokenOut), SWAP_AMOUNT, takerData);
         console2.log("quoted amountOut", quotedOut);
 
         // --- 5. swap, and check it matches the quote -------------------------
         vm.startBroadcast(pk);
-        (, uint256 actualOut,) = router.swap(
-            order, address(tokenIn), address(tokenOut), SWAP_AMOUNT, takerData
-        );
+        (, uint256 actualOut,) =
+            router.swap(order, address(tokenIn), address(tokenOut), SWAP_AMOUNT, takerData);
         vm.stopBroadcast();
 
         console2.log("actual amountOut", actualOut);

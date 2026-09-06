@@ -5,6 +5,7 @@ import {console2} from "forge-std/Script.sol";
 
 import {Aqua} from "@1inch/aqua/src/Aqua.sol";
 
+import {ZyroLens} from "../src/periphery/ZyroLens.sol";
 import {ZyroRouter} from "../src/routers/ZyroRouter.sol";
 import {NetworkConfig} from "./NetworkConfig.sol";
 
@@ -25,7 +26,7 @@ import {NetworkConfig} from "./NetworkConfig.sol";
 ///        --broadcast --verify
 ///      ```
 contract DeployZyroRouter is NetworkConfig {
-    function run() external returns (address aqua, address router) {
+    function run() external returns (address aqua, address router, address lens) {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(pk);
         address owner = ownerAddress(deployer);
@@ -52,21 +53,27 @@ contract DeployZyroRouter is NetworkConfig {
             console2.log("Aqua (existing)", aqua);
         }
 
-        router = address(
-            new ZyroRouter(aqua, wethAddress(), owner, "SwapVM", "1")
-        );
+        router = address(new ZyroRouter(aqua, wethAddress(), owner, "SwapVM", "1"));
+
+        // View-only, in no swap path. Deployed alongside the router because
+        // verifying the subgraph means calling it at the same block a query
+        // was answered at, and a lens deployed later cannot be called at a
+        // block that predates it.
+        lens = address(new ZyroLens(aqua));
 
         vm.stopBroadcast();
 
         console2.log("ZyroRouter    ", router);
+        console2.log("ZyroLens      ", lens);
         console2.log("WETH          ", wethAddress());
         console2.log("");
         console2.log("Next:");
         console2.log("  export AQUA=%s", aqua);
         console2.log("  export ZYRO_ROUTER=%s", router);
-        console2.log("  forge script script/ShipAndSwap.s.sol --broadcast");
+        console2.log("  export ZYRO_LENS=%s", lens);
+        console2.log("  forge script script/SwapSeries.s.sol --broadcast --slow");
         console2.log("");
-        console2.log("Then set both addresses in subgraph/networks.json,");
-        console2.log("subgraph/src/config.ts and substreams/substreams.yaml.");
+        console2.log("Then wire the addresses into the subgraph and Substreams:");
+        console2.log("  node scripts/wire-addresses.mjs");
     }
 }
