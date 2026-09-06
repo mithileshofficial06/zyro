@@ -55,6 +55,8 @@ contract QuoteSwapParityTest is ZyroTestBase {
 
         bytes memory takerData = _takerData(isExactIn);
 
+        uint256 takerFunds = tokenIn.balanceOf(taker);
+
         vm.prank(taker);
         try zyroRouter.quote(order, address(tokenIn), address(tokenOut), amount, takerData)
         returns (uint256 quotedIn, uint256 quotedOut, bytes32) {
@@ -70,10 +72,20 @@ contract QuoteSwapParityTest is ZyroTestBase {
                     "quote/swap divergence in amountOut at this inventory state"
                 );
             } catch {
-                assertGt(
-                    quotedOut,
-                    balanceOut,
-                    "swap reverted for a reason other than the maker being unable to pay"
+                // Exactly two things can legitimately fail at settlement after a
+                // successful quote, and the assertion names both rather than
+                // swallowing whatever went wrong:
+                //
+                //   1. the re-centred curve promised more tokenOut than the
+                //      maker holds (§18's documented failure mode); or
+                //   2. on the exact-output path, the derived amountIn exceeds
+                //      what the taker actually has — a rotated curve can demand
+                //      an enormous input for a small output.
+                //
+                // Anything else is a parity bug and must fail here.
+                assertTrue(
+                    quotedOut > balanceOut || quotedIn > takerFunds,
+                    "swap reverted for a reason other than either side being unable to pay"
                 );
             }
         } catch {
