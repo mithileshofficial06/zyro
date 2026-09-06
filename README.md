@@ -114,7 +114,19 @@ apps/console/       Next.js console: the price series, and index vs chain
 scripts/            wire-addresses (generates the deployment wiring),
                     verify-subgraph (three-way correctness check)
 docs/               RUNBOOK, EVENT-ORDER, BENCHMARK, source verification
+FEEDBACK/           Sponsor feedback, written as friction was hit
 ```
+
+## Sponsor feedback
+
+Written against pinned versions, with the file and line that resolved each
+item — not retrospectively, and not generically.
+
+| | |
+|---|---|
+| [FEEDBACK/1INCH.md](FEEDBACK/1INCH.md) | The opcode table shifted by an `mstore`; Aqua's intra-transaction log order; why the custody model is undersold. |
+| [FEEDBACK/THEGRAPH.md](FEEDBACK/THEGRAPH.md) | No Windows matchstick; `--network` eating manifest comments; and the gap between a green sync and correct data, which is where both of our shipped bugs lived. |
+| [FEEDBACK/UNISWAP.md](FEEDBACK/UNISWAP.md) | Permission flags in the address pressuring you toward the wrong fix; `HookMiner` filed under `test/`; where per-maker inventory stops porting to a pool. |
 
 ## What Zyro does not claim
 
