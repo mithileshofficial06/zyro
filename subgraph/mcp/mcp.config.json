@@ -1,12 +1,15 @@
 {
-  "$schema": "https://modelcontextprotocol.io/schema/mcp.json",
   "mcpServers": {
     "subgraph": {
-      "type": "sse",
-      "url": "https://subgraphs.mcp.thegraph.com/sse",
-      "description": "The Graph's Subgraph MCP server. Lets an agent discover and query the Zyro subgraph — including the live reservation price of any shipped position — without being told the schema in advance.",
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "--header",
+        "Authorization:${AUTH_HEADER}",
+        "https://subgraphs.mcp.thegraph.com/sse"
+      ],
       "env": {
-        "SUBGRAPH_ID": "${ZYRO_SUBGRAPH_ID}"
+        "AUTH_HEADER": "Bearer ${THEGRAPH_GATEWAY_API_KEY}"
       }
     }
   }
