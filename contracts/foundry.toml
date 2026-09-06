@@ -9,10 +9,21 @@ libs = ["lib", "node_modules"]
 # Let each source tree select its own compiler rather than forcing one.
 auto_detect_solc = true
 optimizer = true
-optimizer_runs = 1_000_000
 via_ir = true
 
+# These are swap-vm's own optimizer settings, copied verbatim from
+# lib/swap-vm/foundry.toml. They are not a preference: under via_ir with
+# default Yul settings, `TakerTraitsLib.build` fails to compile with
+# "Cannot swap Variable _1 with Variable expr_12: too deep in the stack".
+# swap-vm is the dominant dependency, so the project builds the way swap-vm
+# builds.
+optimizer_runs = 700
+
 fs_permissions = [{ access = "read-write", path = "./" }]
+
+[profile.default.optimizer_details]
+yul = true
+yulDetails = { stackAllocation = true, optimizerSteps = "dhfoDgvulfnTUtnIf[xa[r]EscLMcCTUtTOntnfDIulLculVcul Tpeul]jmul[jul] VcTOcul jmul : fDnTOcmu" }
 
 [fuzz]
 runs = 2000
