@@ -1,6 +1,6 @@
 import "server-only";
 
-import type {ConsoleData, Position, Protocol} from "./types";
+import type {ConsoleData, Position, PositionData, Protocol} from "./types";
 
 /**
  * The subgraph client.
@@ -82,6 +82,27 @@ const CONSOLE_QUERY = `
   }
 `;
 
+/**
+ * One position by strategy hash, for `/position/[hash]`.
+ *
+ * @dev Queried by id rather than filtered out of the landing page's list. That
+ *      list is capped at 50 and ordered by creation block, so once more than
+ *      fifty positions exist a link to an older one would resolve to "not
+ *      indexed" — which is the exact wording of a real failure mode, on a page
+ *      that is working correctly.
+ */
+const POSITION_QUERY = `
+  query PositionByHash($id: ID!) {
+    _meta {
+      block { number }
+      hasIndexingErrors
+    }
+    position(id: $id) {
+      ${POSITION_FIELDS}
+    }
+  }
+`;
+
 interface GraphQLResponse<T> {
   data?: T;
   errors?: {message: string}[];
@@ -147,6 +168,52 @@ export async function fetchConsoleData(): Promise<ConsoleData> {
       meta: null,
       protocol: null,
       positions: [],
+      error: error instanceof Error ? error.message : String(error),
+      configured: true
+    };
+  }
+}
+
+/**
+ * One position, by strategy hash.
+ *
+ * Never throws, for the same reason `fetchConsoleData` does not: an unset
+ * endpoint and an unreachable one are both states the page renders.
+ *
+ * @dev The id is lower-cased before the lookup. The subgraph stores entity ids
+ *      as the lower-case hex of the `bytes32` strategy hash, and a `Bytes` id
+ *      lookup is an exact byte match — so a hash pasted from a block explorer
+ *      in EIP-55 mixed case would return `null` and be indistinguishable from
+ *      a position that was never indexed.
+ */
+export async function fetchPosition(id: string): Promise<PositionData> {
+  if (!process.env.SUBGRAPH_URL) {
+    return {meta: null, position: null, error: null, configured: false};
+  }
+
+  try {
+    const data = await request<{
+      _meta: {block: {number: number}; hasIndexingErrors: boolean};
+      position: Position | null;
+    }>(POSITION_QUERY, {id: id.toLowerCase()});
+
+    return {
+      meta: {
+        block: data._meta.block.number,
+        hasIndexingErrors: data._meta.hasIndexingErrors
+      },
+      // `?? null` because an endpoint that omits the key entirely is not the
+      // same shape as one that answers `null`, and `undefined` reaching the
+      // page would render as "not indexed" through a falsy check rather than
+      // through the check that means it.
+      position: data.position ?? null,
+      error: null,
+      configured: true
+    };
+  } catch (error) {
+    return {
+      meta: null,
+      position: null,
       error: error instanceof Error ? error.message : String(error),
       configured: true
     };

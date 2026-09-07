@@ -160,9 +160,11 @@ const position = {
   fills: series.fills
 };
 
-const payload = {
+const META = {block: {number: START_BLOCK + STEPS * 15}, hasIndexingErrors: false};
+
+const LIST = {
   data: {
-    _meta: {block: {number: START_BLOCK + STEPS * 15}, hasIndexingErrors: false},
+    _meta: META,
     protocol: {
       id: "0x7a79726f",
       positionCount: "1",
@@ -173,9 +175,44 @@ const payload = {
   }
 };
 
+/**
+ * @dev The two queries are distinguished, rather than one payload answering
+ *      both. `/position/[hash]` asks for a single `position(id:)` and gets
+ *      `null` for any other hash — which is the state that page's whole
+ *      diagnostic panel exists for, and a mock that returned this position for
+ *      every hash would make that panel unreachable during development.
+ */
+function answer(body) {
+  let query = "";
+  let id = "";
+  try {
+    const parsed = JSON.parse(body);
+    query = parsed.query ?? "";
+    id = parsed.variables?.id ?? "";
+  } catch {
+    // A malformed body gets the list, same as an empty one. This is a
+    // development aid, not a GraphQL server.
+  }
+
+  if (!query.includes("position(id:")) return LIST;
+
+  return {
+    data: {
+      _meta: META,
+      position: id.toLowerCase() === STRATEGY_HASH.toLowerCase() ? position : null
+    }
+  };
+}
+
 createServer((req, res) => {
-  res.setHeader("content-type", "application/json");
-  res.end(JSON.stringify(payload));
+  let body = "";
+  req.on("data", (chunk) => {
+    body += chunk;
+  });
+  req.on("end", () => {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify(answer(body)));
+  });
 }).listen(PORT, () => {
   const first = series.fills[0];
   const last = series.fills[series.fills.length - 1];
@@ -185,5 +222,6 @@ createServer((req, res) => {
   console.log(`  ${STEPS} fills, from the strategy-sdk kernel`);
   console.log(`  separation at fill 1:  ${bps(first.midWadAtFill, first.reservationPriceWadAtFill).toFixed(2)} bps`);
   console.log(`  separation at fill ${STEPS}: ${bps(last.midWadAtFill, last.reservationPriceWadAtFill).toFixed(2)} bps`);
+  console.log(`  one position:          /position/${STRATEGY_HASH}`);
   console.log(`\n  SUBGRAPH_URL=http://localhost:${PORT} npm run dev`);
 });
