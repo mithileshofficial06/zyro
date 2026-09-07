@@ -1,0 +1,9 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "aqua": "0x12e969058658daf7b4c0ff495a2779c0a44b82ef",
+  "zyroRouter": "0x915900ccc5409beb4d11b2c4bd4c7f94b2648335",
+  "zyroLens": "0x2d8c5ae05b5e55bdde3f9b81d2701b5df8cdaa43",
+  "startBlock": 46494666,
+  "deployedAt": "2026-09-07T05:06:59.236Z"
+}

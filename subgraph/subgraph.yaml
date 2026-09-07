@@ -18,9 +18,9 @@ dataSources:
     name: Aqua
     network: base-sepolia
     source:
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0x12e969058658daf7b4c0ff495a2779c0a44b82ef"
       abi: Aqua
-      startBlock: 0
+      startBlock: 46494666
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -55,9 +55,9 @@ dataSources:
     name: ZyroRouter
     network: base-sepolia
     source:
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0x915900ccc5409beb4d11b2c4bd4c7f94b2648335"
       abi: ZyroRouter
-      startBlock: 0
+      startBlock: 46494666
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

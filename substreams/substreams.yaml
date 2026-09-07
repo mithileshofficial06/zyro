@@ -31,12 +31,12 @@ binaries:
 params:
   # The Zyro router, as an Aqua "app". Replace with the deployed address, and
   # keep it in step with subgraph/src/config.ts.
-  map_events: "0x0000000000000000000000000000000000000000"
+  map_events: "0x915900ccc5409beb4d11b2c4bd4c7f94b2648335"
 
 modules:
   - name: map_events
     kind: map
-    initialBlock: 0
+    initialBlock: 46494666
     inputs:
       - params: string
       - source: sf.ethereum.type.v2.Block
@@ -45,7 +45,7 @@ modules:
 
   - name: graph_out
     kind: map
-    initialBlock: 0
+    initialBlock: 46494666
     inputs:
       - map: map_events
     output:

@@ -1,12 +1,12 @@
 {
   "base-sepolia": {
     "Aqua": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "startBlock": 0
+      "address": "0x12e969058658daf7b4c0ff495a2779c0a44b82ef",
+      "startBlock": 46494666
     },
     "ZyroRouter": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "startBlock": 0
+      "address": "0x915900ccc5409beb4d11b2c4bd4c7f94b2648335",
+      "startBlock": 46494666
     }
   }
 }

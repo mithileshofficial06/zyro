@@ -1,7 +1,7 @@
 # Foundry
 contracts/out/
 contracts/cache/
-contracts/broadcast/*/dry-run/
+contracts/broadcast/**/dry-run/
 contracts/.env
 
 # swap-vm / aqua resolve their Solidity deps via npm into node_modules,
