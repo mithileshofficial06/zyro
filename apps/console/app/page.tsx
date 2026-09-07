@@ -12,6 +12,7 @@ import {VerifyPanel} from "@/components/VerifyPanel";
 import {loadBenchmark} from "@/lib/benchmark";
 import {loadDeployment} from "@/lib/deployment";
 import {
+  formatBlock,
   formatBps,
   formatDuration,
   formatSigned,
@@ -726,7 +727,7 @@ function Stack({deployment}: {deployment: ReturnType<typeof loadDeployment>}) {
                 value={deployment.zyroLens ?? "not deployed"}
                 title={deployment.zyroLens ?? undefined}
               />
-              <Field label="start block" value={deployment.startBlock.toLocaleString()} />
+              <Field label="start block" value={formatBlock(deployment.startBlock)} />
             </>
           ) : (
             <p className="dim" style={{margin: 0}}>

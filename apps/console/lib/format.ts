@@ -125,3 +125,21 @@ export function formatTimestamp(seconds: bigint | string): string {
   const date = new Date(Number(BigInt(seconds)) * 1000);
   return date.toISOString().replace("T", " ").slice(0, 19);
 }
+
+/**
+ * A block number, grouped in threes.
+ *
+ * @dev Not `toLocaleString()`. That reads the *runtime's* locale, which on a
+ *      server component is the machine the console happens to be running on —
+ *      so block 46,494,666 renders as `4,64,94,666` under an Indian locale and
+ *      as `46.494.666` under a German one, for the same deployment. The block
+ *      number sits in the hero beside the "live" tag and is the element most
+ *      likely to be photographed; it should not depend on where the process
+ *      was started.
+ *
+ *      Grouped by the same expression `formatTokens` uses, so the console has
+ *      one grouping convention rather than two that agree by coincidence.
+ */
+export function formatBlock(value: number | bigint | string): string {
+  return BigInt(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}

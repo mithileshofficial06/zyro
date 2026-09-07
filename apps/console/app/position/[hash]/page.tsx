@@ -12,6 +12,7 @@ import {VerifyPanel} from "@/components/VerifyPanel";
 import {Reveal} from "@/components/motion";
 import {loadDeployment} from "@/lib/deployment";
 import {
+  formatBlock,
   formatBps,
   formatDuration,
   formatSigned,
@@ -85,7 +86,7 @@ export default async function PositionPage({params}: {params: Promise<{hash: str
               <Link href="/">← Console</Link> <span style={{opacity: 0.4}}>/</span> position
             </>
           }
-          index={data.meta ? `Block ${data.meta.block.toLocaleString()}` : "Not indexed"}
+          index={data.meta ? `Block ${formatBlock(data.meta.block)}` : "Not indexed"}
           title={
             <span className="mono" style={{fontSize: "0.42em", lineHeight: 1.3}}>
               {hash}
@@ -354,7 +355,7 @@ function Parameters({position}: {position: Position}) {
       />
       <Field
         label="shipped at block"
-        value={Number(position.createdAtBlock).toLocaleString()}
+        value={formatBlock(position.createdAtBlock)}
         title={formatTimestamp(position.createdAtTimestamp)}
       />
 

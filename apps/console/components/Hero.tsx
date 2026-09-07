@@ -3,6 +3,8 @@
 import {motion, useReducedMotion, useScroll, useTransform} from "framer-motion";
 import {useRef} from "react";
 
+import {formatBlock} from "@/lib/format";
+
 import {ScrollCue} from "./Nav";
 import {EASE, Marquee, Pulse, SplitText} from "./motion";
 
@@ -70,7 +72,7 @@ export function Hero({
           </span>
           {network ? <span className="tag tag--idle">{network}</span> : null}
           {block !== null ? (
-            <span className="tag tag--idle num">block {block.toLocaleString()}</span>
+            <span className="tag tag--idle num">block {formatBlock(block)}</span>
           ) : null}
           {hasErrors ? (
             <span className="tag" style={{color: "var(--maroon-lit)"}}>
