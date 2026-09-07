@@ -152,12 +152,22 @@ export async function readLensState(
  *      arithmetic can be perfect and still produce the wrong number from the
  *      wrong balance. Ordering the rows this way makes the reader diagnose in
  *      the right order.
+ *
+ *      The block is taken from the position, not passed in, because there is
+ *      exactly one correct choice and it is not the caller's to make.
+ *      `lastUpdatedBlock` is where the subgraph computed these numbers;
+ *      `reservationPriceWad`, `halfSpreadWad` and `horizonRemainingSecs` decay
+ *      continuously after it, so comparing them at any later block — chainhead
+ *      *or* the index head — shows a correct subgraph disagreeing by more the
+ *      longer nothing trades. Balances, `q`, the mid and the penalty do not
+ *      decay and agree at either block; pinning all of them to one keeps this
+ *      a single comparison.
  */
 export async function verifyPosition(
   lensAddress: string,
-  position: Position,
-  block: number
+  position: Position
 ): Promise<VerificationResult> {
+  const block = Number(position.lastUpdatedBlock);
   try {
     const chain = await readLensState(lensAddress, position, block);
     const [tokenIn, tokenOut] = position.tokens;

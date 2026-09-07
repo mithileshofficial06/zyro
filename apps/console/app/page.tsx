@@ -53,7 +53,7 @@ export default async function Page() {
   // depend on hydration to appear.
   const verification =
     position && deployment?.zyroLens && data.meta
-      ? await verifyPosition(deployment.zyroLens, position, data.meta.block)
+      ? await verifyPosition(deployment.zyroLens, position)
       : null;
 
   return (

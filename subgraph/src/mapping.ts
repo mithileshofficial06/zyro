@@ -106,7 +106,8 @@ function refreshPricing(
   position: Position,
   tokenIn: Bytes,
   tokenOut: Bytes,
-  timestamp: BigInt
+  timestamp: BigInt,
+  block: BigInt
 ): void {
   let balanceIn = balanceOf(position.id, tokenIn);
   let balanceOut = balanceOf(position.id, tokenOut);
@@ -126,6 +127,9 @@ function refreshPricing(
     : BigInt.zero();
   position.horizonRemainingSecs = remaining(p, elapsed);
   position.lastUpdatedTimestamp = timestamp;
+  // Stamped in the same assignment block as the values it describes, so the
+  // snapshot and the block it was taken at cannot drift apart.
+  position.lastUpdatedBlock = block;
 }
 
 /**
@@ -153,10 +157,10 @@ function noteToken(position: Position, token: Bytes): void {
  *      what keeps a reverse-direction fill from inverting the published series.
  *      A no-op until two tokens are funded — a one-token position has no mid.
  */
-function refreshCanonical(position: Position, timestamp: BigInt): boolean {
+function refreshCanonical(position: Position, timestamp: BigInt, block: BigInt): boolean {
   let tokens = position.tokens;
   if (tokens.length < 2) return false;
-  refreshPricing(position, tokens[0], tokens[1], timestamp);
+  refreshPricing(position, tokens[0], tokens[1], timestamp, block);
   return true;
 }
 
@@ -215,13 +219,14 @@ export function handleShipped(event: Shipped): void {
   position.createdAtBlock = event.block.number;
   position.createdAtTimestamp = event.block.timestamp;
   position.lastUpdatedTimestamp = event.block.timestamp;
+  position.lastUpdatedBlock = event.block.number;
   position.save();
 
   let funded = drainPendingPushes(hash, event.block.timestamp);
   for (let i = 0; i < funded.length; i++) {
     noteToken(position, funded[i]);
   }
-  refreshCanonical(position, event.block.timestamp);
+  refreshCanonical(position, event.block.timestamp, event.block.number);
   position.save();
 
   let protocol = loadProtocol();
@@ -273,6 +278,7 @@ export function handleDocked(event: Docked): void {
 
   position.active = false;
   position.lastUpdatedTimestamp = event.block.timestamp;
+  position.lastUpdatedBlock = event.block.number;
   position.save();
 
   let protocol = loadProtocol();
@@ -310,7 +316,7 @@ export function handlePushed(event: Pushed): void {
   // first becomes priceable. Republishing on every push also keeps the
   // reservation price correct across a swap settlement, which pushes tokenIn.
   noteToken(position, event.params.token);
-  refreshCanonical(position, event.block.timestamp);
+  refreshCanonical(position, event.block.timestamp, event.block.number);
   position.save();
 }
 
@@ -368,7 +374,7 @@ export function handlePulled(event: Pulled): void {
   b.save();
 
   noteToken(position, event.params.token);
-  refreshCanonical(position, event.block.timestamp);
+  refreshCanonical(position, event.block.timestamp, event.block.number);
   position.save();
 }
 
@@ -441,7 +447,7 @@ export function handleSwapped(event: Swapped): void {
   // --- Then refresh the position's published state --------------------------
   // Already done by the settlement handlers; repeated here so a fill still
   // republishes if a future Aqua stops emitting Pushed/Pulled at settlement.
-  refreshCanonical(position, timestamp);
+  refreshCanonical(position, timestamp, event.block.number);
   position.save();
 
   let protocol = loadProtocol();

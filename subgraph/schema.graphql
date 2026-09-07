@@ -75,6 +75,22 @@ type Position @entity(immutable: false) {
   createdAtTimestamp: BigInt!
   lastUpdatedTimestamp: BigInt!
 
+  """
+  The block whose handler last wrote the pricing fields above.
+
+  Published because every time-dependent field on this entity — the
+  reservation price, the half spread, the remaining horizon — is a *snapshot*
+  taken when an event last touched this position, and a subgraph has no way to
+  keep a continuously-decaying value current without a block handler. Without
+  this field a consumer comparing those numbers against a live `eth_call` has
+  no block to pin the call to, and the only honest choice left is chainhead —
+  which is guaranteed to disagree, by more the longer the position sits idle.
+
+  It is not the same as the index head. `_meta.block` is how far the subgraph
+  has scanned; this is where these particular numbers were computed.
+  """
+  lastUpdatedBlock: BigInt!
+
   balances: [PositionBalance!]! @derivedFrom(field: "position")
   fills: [Fill!]! @derivedFrom(field: "position")
 }

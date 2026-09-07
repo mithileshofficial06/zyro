@@ -35,6 +35,7 @@ const POSITION_FIELDS = `
   createdAtBlock
   createdAtTimestamp
   lastUpdatedTimestamp
+  lastUpdatedBlock
   balances {
     token
     amount

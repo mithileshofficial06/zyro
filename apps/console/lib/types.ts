@@ -57,6 +57,15 @@ export interface Position {
   createdAtBlock: string;
   createdAtTimestamp: string;
   lastUpdatedTimestamp: string;
+  /**
+   * The block whose handler last wrote the pricing fields above.
+   *
+   * Every time-dependent field on this entity is a snapshot taken when an
+   * event last touched the position — a subgraph cannot keep a continuously
+   * decaying value current without a block handler. This is the only block an
+   * `eth_call` may be compared against; see `verifyPosition`.
+   */
+  lastUpdatedBlock: string;
 
   balances: PositionBalance[];
   fills: Fill[];
@@ -123,7 +132,11 @@ export interface Comparison {
 
 export interface VerificationResult {
   ok: boolean;
-  /** The block both sides were read at. Comparing across blocks is a clock. */
+  /**
+   * The block both sides were read at — the position's `lastUpdatedBlock`.
+   * Comparing across blocks is a clock, and for the time-dependent fields even
+   * the index head is the wrong block.
+   */
   block: number;
   comparisons: Comparison[];
   error: string | null;

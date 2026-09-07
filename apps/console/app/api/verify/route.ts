@@ -47,10 +47,10 @@ export async function GET(request: Request) {
     return NextResponse.json({error: `no indexed position ${id}`}, {status: 404});
   }
 
-  // Pinned to the block the index has reached, never to latest. A subgraph
-  // lags chainhead, so comparing against latest compares two different states
-  // and reports a clock as a disagreement.
-  const result = await verifyPosition(deployment.zyroLens, position, data.meta.block);
+  // The block is the position's own `lastUpdatedBlock`, chosen inside
+  // `verifyPosition` — not latest, and not the index head either. See the note
+  // there: the time-dependent fields are snapshots, and they decay after it.
+  const result = await verifyPosition(deployment.zyroLens, position);
 
   return NextResponse.json(result, {
     status: result.error ? 502 : 200,

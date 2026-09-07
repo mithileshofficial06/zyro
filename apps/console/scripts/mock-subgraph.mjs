@@ -145,6 +145,11 @@ const position = {
   createdAtBlock: String(START_BLOCK),
   createdAtTimestamp: START.toString(),
   lastUpdatedTimestamp: lastTimestamp.toString(),
+  // The block the last fill landed in, which is where a real subgraph would
+  // have computed the pricing snapshot above. The verification panel pins its
+  // `eth_call` to this, so it has to be the fill's block and not the index
+  // head — even here, where there is no chain behind it to call.
+  lastUpdatedBlock: String(START_BLOCK + STEPS * 15 - 15),
   balances: [
     {
       token: TOKEN_IN,

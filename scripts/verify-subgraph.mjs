@@ -13,9 +13,9 @@
  *   2. `packages/strategy-sdk`, the TypeScript port
  *   3. `subgraph/src`, the AssemblyScript port that publishes the index
  *
- * This queries (3), calls (1) through `ZyroLens` at **the same block the query
- * was answered at**, and recomputes with (2) from the balances the chain
- * reports. All three must agree exactly. Any disagreement localises:
+ * This queries (3), calls (1) through `ZyroLens` at **the block each position's
+ * numbers were computed at**, and recomputes with (2) from the balances the
+ * chain reports. All three must agree exactly. Any disagreement localises:
  *
  *   - balances differ            → the Pushed/Pulled reconstruction is wrong
  *   - balances agree, price does not, and the SDK sides with the chain
@@ -23,10 +23,23 @@
  *   - both ports differ from the chain in the same direction
  *                                 → the shared reading of the spec is wrong
  *
- * Pinning the block is what makes this a comparison rather than a race. A
- * subgraph lags chainhead, so calling `eth_call` at "latest" against an index
- * that has reached block N-3 compares two different states and reports a
- * mismatch that is really a clock.
+ * Pinning the block is what makes this a comparison rather than a race, and
+ * the block to pin to is `position.lastUpdatedBlock` - not chainhead, and not
+ * the index head either.
+ *
+ * Calling at "latest" against an index that has reached block N-3 compares two
+ * different states and reports a lagging subgraph as a bug. But the index head
+ * is wrong too, and less obviously so: a subgraph recomputes only when an event
+ * touches a position, so `reservationPriceWad`, `halfSpreadWad` and
+ * `horizonRemainingSecs` are snapshots taken at the *last event*, and they
+ * decay continuously afterwards. A position that has sat idle for ten minutes
+ * publishes a ten-minute-old reservation price and is entirely correct to. Pin
+ * to the index head and those three disagree by more the longer nothing
+ * trades, which is a real deployment reporting a correct subgraph as broken.
+ *
+ * Balances, `q`, `midWad` and `penaltyBps` do not decay, so they agree at any
+ * block between the last event and now. Only the time-dependent trio needs the
+ * exact block, and all six are pinned to it for one comparison rather than two.
  *
  *   SUBGRAPH_URL=https://... BASE_SEPOLIA_RPC_URL=https://... \
  *     node scripts/verify-subgraph.mjs [--network base-sepolia]
@@ -196,6 +209,7 @@ const POSITIONS = `
       halfSpreadWad
       penaltyBps
       horizonRemainingSecs
+      lastUpdatedBlock
       balances { token amount }
       fills(first: 100, orderBy: timestamp) {
         blockNumber
@@ -244,13 +258,18 @@ if (data.positions.length === 0) {
   );
 }
 
-// Pinned to the block the subgraph has reached, not to latest: a subgraph lags
-// chainhead, and comparing two different states reports a clock as a bug.
-const blockTag = `0x${indexedBlock.toString(16)}`;
-
 for (const position of data.positions) {
   console.log(`\nposition ${position.id}`);
   console.log(`  active ${position.active}, ${position.fills.length} fills`);
+
+  // Per position, not once per run: two positions last traded at different
+  // blocks, and one shared tag would be right for at most one of them.
+  const snapshotBlock = Number(position.lastUpdatedBlock);
+  const blockTag = `0x${snapshotBlock.toString(16)}`;
+  const lag = indexedBlock - snapshotBlock;
+  console.log(
+    `  snapshot  block ${snapshotBlock}` + (lag === 0 ? "" : `, ${lag} behind the index head`)
+  );
 
   if (position.tokens.length < 2) {
     console.log("  SKIP  fewer than two funded tokens, so there is no mid to compare");

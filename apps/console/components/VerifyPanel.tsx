@@ -16,7 +16,10 @@ import type {VerificationResult} from "@/lib/types";
  *
  * The left column is what the AssemblyScript mappings published. The right is
  * what `ZyroLens` returns from `AQUA.safeBalances` and the same Solidity
- * library the instruction runs, called at **the block the index has reached**.
+ * library the instruction runs, called at **the block those numbers were
+ * computed at** — the position's `lastUpdatedBlock`, not chainhead and not the
+ * index head. The time-dependent fields are snapshots taken when an event last
+ * touched the position, and they decay continuously afterwards.
  *
  * @dev Balances are listed first on purpose. The mappings reconstruct them
  *      from `Pushed`/`Pulled` events while the lens reads Aqua's ledger
@@ -77,8 +80,11 @@ export function VerifyPanel({
         The left column is what the subgraph published. The right is{" "}
         <span className="mono">ZyroLens.state()</span>, reading{" "}
         <span className="mono">AQUA.safeBalances</span> and the same Solidity library the
-        instruction prices with — called at the block the index has reached, not at
-        chainhead. Comparing against chainhead would report a lagging index as a bug.
+        instruction prices with — called at the block the subgraph computed these numbers
+        at, which is where the position last traded. Not chainhead, which would report a
+        lagging index as a bug, and not the index head either: a subgraph recomputes only
+        on an event, so the reservation price and the remaining horizon decay after it and
+        would disagree by more the longer nothing trades.
       </p>
 
       {result?.error ? (
@@ -132,7 +138,7 @@ export function VerifyPanel({
             style={{justifyContent: "space-between", marginTop: 14, fontSize: "0.72rem"}}
           >
             <span className="num dim">
-              position {shortHex(positionId, 10, 6)} · block {result.block}
+              position {shortHex(positionId, 10, 6)} · snapshot block {result.block}
             </span>
             <span className="num" style={{color: result.ok ? "var(--ok)" : "var(--fail)"}}>
               {result.comparisons.filter((c) => c.agrees).length}/{result.comparisons.length} fields
