@@ -93,6 +93,12 @@ contract CompetitiveFlowTest is ZyroTestBase {
     uint256 internal constant WAD = 1e18;
     uint256 internal constant BPS = 10_000;
 
+    /// @dev The console's `/simulate` receipt table reads this file. It is
+    ///      written by `test_WriteBenchmarkFixture` and checked for staleness
+    ///      in CI alongside the other fixtures, so no number on that page can
+    ///      be hand-entered without the build going red.
+    string internal constant FIXTURE_PATH = "test/fixtures/benchmark.json";
+
     // ---------------------------------------------------------------------
     // Result accounting
     // ---------------------------------------------------------------------
@@ -117,12 +123,41 @@ contract CompetitiveFlowTest is ZyroTestBase {
         uint256 declines; // ticks where neither position was acceptable
         uint256 stockValueWad;
         uint256 zyroValueWad;
+        /// @dev The per-tick receipt, already serialised as a JSON array body.
+        ///      Empty unless `_recording` was set — see `_run`.
+        string receipt;
+    }
+
+    /// @dev One row of the receipt table: everything the taker saw at a tick and
+    ///      what it did about it. Grouped into a struct rather than passed as
+    ///      twelve arguments because `via_ir` cannot place that many live locals
+    ///      and reports the failure as an unactionable Yul stack error.
+    struct TickRecord {
+        uint256 tick;
+        uint256 priceWad;
+        uint256 elapsed;
+        uint256 sizeIn;
+        uint256 fairOut;
+        uint256 minOut;
+        uint256 stockOut;
+        uint256 zyroOut;
+        uint256 amountOut;
+        uint256 stockBalanceIn;
+        uint256 zyroBalanceIn;
+        uint8 routed; // 0 declined, 1 stock, 2 zyro
     }
 
     ISwapVM.Order internal stockOrder;
     ISwapVM.Order internal zyroOrder;
     bytes internal takerData;
     uint40 internal startTs;
+
+    /// @dev Off for the scenario and kill tests, which only read the summary.
+    ///      Serialising a fifty-row receipt for a run nobody publishes is pure
+    ///      cost, and it is the only thing this flag changes — no arithmetic
+    ///      is behind it, so the fixture cannot describe a different simulation
+    ///      than the assertions ran against.
+    bool internal _recording;
 
     function setUp() public override {
         super.setUp();
@@ -283,18 +318,40 @@ contract CompetitiveFlowTest is ZyroTestBase {
                 bool stockOk = stockOut >= minOut;
                 bool zyroOk = zyroOut >= minOut;
 
+                uint8 routed;
                 if (!stockOk && !zyroOk) {
                     o.declines++;
                 } else if (stockOut >= zyroOut && stockOk) {
                     _fill(o.stock, tickSize, stockOut, fairOut);
+                    routed = 1;
                 } else if (zyroOk) {
                     _fill(o.zyro, tickSize, zyroOut, fairOut);
+                    routed = 2;
                 } else {
                     _fill(o.stock, tickSize, stockOut, fairOut);
+                    routed = 1;
                 }
 
                 _track(o.stock);
                 _track(o.zyro);
+
+                if (_recording) {
+                    TickRecord memory r;
+                    r.tick = o.ticks;
+                    r.priceWad = price;
+                    r.elapsed = block.timestamp - startTs;
+                    r.sizeIn = tickSize;
+                    r.fairOut = fairOut;
+                    r.minOut = minOut;
+                    r.stockOut = stockOut;
+                    r.zyroOut = zyroOut;
+                    r.routed = routed;
+                    r.amountOut = routed == 1 ? stockOut : routed == 2 ? zyroOut : 0;
+                    r.stockBalanceIn = o.stock.balanceIn;
+                    r.zyroBalanceIn = o.zyro.balanceIn;
+
+                    o.receipt = string.concat(o.receipt, o.ticks == 1 ? "" : ",", _rowJson(r));
+                }
             }
         }
 
@@ -380,5 +437,173 @@ contract CompetitiveFlowTest is ZyroTestBase {
         // on value by refusing to trade has not succeeded.
         console2.log("fill rate %  stock/zyro",
             o.stock.fills * 100 / o.ticks, o.zyro.fills * 100 / o.ticks);
+    }
+
+    // =====================================================================
+    // The fixture the console reads
+    // =====================================================================
+
+    /// @dev Every integer is written as a **string**. A WAD balance is ~1e23,
+    ///      which is past `Number.MAX_SAFE_INTEGER`, and `JSON.parse` turns a
+    ///      bare number literal into a float — silently dropping exactly the
+    ///      low digits that separate one quote from another. The console keeps
+    ///      these in `bigint` from parse to render, and it can only do that if
+    ///      they arrive quoted.
+    ///      Split in half for the same reason `KernelFixtures` splits its own
+    ///      serialisers: building the whole row in one expression puts more
+    ///      live locals on the stack than `via_ir` can place.
+    function _rowJson(TickRecord memory r) internal pure returns (string memory) {
+        return string.concat("\n      {", _rowSeenJson(r), _rowDoneJson(r), "}");
+    }
+
+    /// @dev What the taker saw before it chose.
+    function _rowSeenJson(TickRecord memory r) internal pure returns (string memory) {
+        return string.concat(
+            '"tick":', vm.toString(r.tick),
+            ',"priceWad":"', vm.toString(r.priceWad),
+            '","elapsedSecs":', vm.toString(r.elapsed),
+            ',"sizeInWad":"', vm.toString(r.sizeIn),
+            '","fairOutWad":"', vm.toString(r.fairOut),
+            '","minOutWad":"', vm.toString(r.minOut),
+            '",'
+        );
+    }
+
+    /// @dev What it chose, and where that left both positions.
+    function _rowDoneJson(TickRecord memory r) internal pure returns (string memory) {
+        return string.concat(
+            '"stockQuoteWad":"', vm.toString(r.stockOut),
+            '","zyroQuoteWad":"', vm.toString(r.zyroOut),
+            '","routed":"', r.routed == 1 ? "stock" : r.routed == 2 ? "zyro" : "declined",
+            '","amountOutWad":"', vm.toString(r.amountOut),
+            '","stockBalanceInWad":"', vm.toString(r.stockBalanceIn),
+            '","zyroBalanceInWad":"', vm.toString(r.zyroBalanceIn),
+            '"'
+        );
+    }
+
+    /// @dev Split from `_scenarioJson` only to keep the number of live locals
+    ///      inside `via_ir`'s reach.
+    function _sideJson(Position memory p, uint256 valueWad) internal pure returns (string memory) {
+        return string.concat(
+            '{"fills":', vm.toString(p.fills),
+            ',"volumeInWad":"', vm.toString(p.volumeIn),
+            '","volumeOutWad":"', vm.toString(p.volumeOut),
+            '","maxDeviationWad":"', vm.toString(p.maxDeviation),
+            '","ticksNearBound":', vm.toString(p.ticksNearBound),
+            ',"takerCostWad":"', vm.toString(p.takerCostWad),
+            '","balanceInWad":"', vm.toString(p.balanceIn),
+            '","balanceOutWad":"', vm.toString(p.balanceOut),
+            '","valueWad":"', vm.toString(valueWad),
+            '"}'
+        );
+    }
+
+    function _scenarioJson(Outcome memory o, string memory label, string memory path)
+        internal
+        pure
+        returns (string memory)
+    {
+        return string.concat(
+            '\n  {"name":"', o.name,
+            '","label":"', label,
+            '","path":"', path,
+            '","ticks":', vm.toString(o.ticks),
+            ',"declines":', vm.toString(o.declines),
+            ',"stock":', _sideJson(o.stock, o.stockValueWad),
+            ',"zyro":', _sideJson(o.zyro, o.zyroValueWad),
+            ',"receipt":[', o.receipt, "\n    ]}"
+        );
+    }
+
+    /// @dev The parameters the receipt is only interpretable against. `q` is
+    ///      `balanceIn - startInventoryWad`, and whether a row sits near the
+    ///      soft bound cannot be read off the balances without `boundWad`.
+    function _configJson() internal pure returns (string memory) {
+        string memory venue = string.concat(
+            '"startInventoryWad":"', vm.toString(START_IN),
+            '","startQuoteWad":"', vm.toString(START_OUT),
+            '","tickSizeWad":"', vm.toString(TICK_SIZE),
+            '","tickSeconds":', vm.toString(TICK_SECONDS),
+            ',"ticksPerLeg":', vm.toString(TICKS_PER_LEG),
+            ',"takerToleranceBps":', vm.toString(TAKER_TOLERANCE_BPS),
+            ","
+        );
+        string memory params = string.concat(
+            '"targetInventoryWad":"', vm.toString(TARGET),
+            '","boundWad":"', vm.toString(BOUND),
+            '","gammaWad":"', vm.toString(int256(SIM_GAMMA)),
+            '","sigmaSqWad":"', vm.toString(int256(SIM_SIGMA_SQ)),
+            '","baseSpreadWad":"', vm.toString(int256(SIM_BASE_SPREAD)),
+            '","horizonSecs":', vm.toString(uint256(SIM_HORIZON))
+        );
+        return string.concat('"config":{', venue, params, "}");
+    }
+
+    /// @notice Writes the benchmark the console's `/simulate` page renders.
+    ///
+    /// @dev The build spec's rule for this page is that **every number is
+    ///      generated, never hand-typed**, and this is what enforces it: the
+    ///      four scenarios run against the same real `AquaSwapVMRouter` and
+    ///      `ZyroRouter` the assertions above use, and their output is the only
+    ///      source the page has. CI regenerates it and fails on a diff, so a
+    ///      figure edited into the page — or into `docs/BENCHMARK.md` — cannot
+    ///      survive a commit.
+    ///
+    ///      Running all four in one test rather than reusing the scenario tests
+    ///      is safe because nothing carries between runs: `_run` re-seeds both
+    ///      inventories before every quote and re-derives `startTs`, so elapsed
+    ///      time inside a run is identical no matter what the absolute clock
+    ///      reads when it starts.
+    function test_WriteBenchmarkFixture() public {
+        _recording = true;
+
+        string memory json = string.concat("{\n  ", _configJson(), ',\n  "scenarios": [');
+
+        uint256[] memory path = new uint256[](5);
+        path[0] = 1.00e18;
+        path[1] = 0.95e18;
+        path[2] = 0.90e18;
+        path[3] = 0.85e18;
+        path[4] = 0.80e18;
+        json = string.concat(
+            json, _scenarioJson(_run("A-slow-trend", path, TICK_SIZE), "A", "1.00 -> 0.80"), ","
+        );
+
+        path[1] = 0.95e18;
+        path[2] = 0.87e18;
+        path[3] = 0.76e18;
+        path[4] = 0.65e18;
+        json = string.concat(
+            json, _scenarioJson(_run("B-fast-trend", path, TICK_SIZE), "B", "1.00 -> 0.65"), ","
+        );
+
+        uint256[] memory burst = new uint256[](3);
+        burst[0] = 1.00e18;
+        burst[1] = 0.88e18;
+        burst[2] = 0.72e18;
+        json = string.concat(
+            json,
+            _scenarioJson(
+                _run("C-toxic-burst", burst, TICK_SIZE * 4), "C", "1.00 -> 0.72, 4x size"
+            ),
+            ","
+        );
+
+        path[1] = 0.80e18;
+        path[2] = 1.05e18;
+        path[3] = 0.78e18;
+        path[4] = 1.10e18;
+        json = string.concat(
+            json,
+            _scenarioJson(
+                _run("D-whipsaw", path, TICK_SIZE), "D", "1.00 -> 0.80 -> 1.05 -> 0.78 -> 1.10"
+            )
+        );
+
+        json = string.concat(json, "\n  ]\n}\n");
+
+        vm.writeFile(FIXTURE_PATH, json);
+        console2.log("wrote", FIXTURE_PATH);
     }
 }

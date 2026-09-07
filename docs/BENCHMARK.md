@@ -4,6 +4,12 @@ Produced by [`contracts/test/CompetitiveFlow.t.sol`](../contracts/test/Competiti
 Every number below comes from a live `forge test` run against the real
 `AquaSwapVMRouter` and `ZyroRouter`; nothing is hand-entered.
 
+The same run writes
+[`contracts/test/fixtures/benchmark.json`](../contracts/test/fixtures/benchmark.json),
+which carries the per-tick receipt this page summarises. The console renders it
+at `/simulate`, and CI fails on a diff under `contracts/test/fixtures/` — so a
+figure edited into either the page or this table cannot survive a commit.
+
 ## What this benchmark fixes
 
 The previous benchmark reported a 22.35-token PnL advantage that was
