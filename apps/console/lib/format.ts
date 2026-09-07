@@ -69,12 +69,18 @@ export function formatTokens(value: bigint | string, places = 2): string {
   return fraction ? `${sign}${grouped}.${fraction}` : `${sign}${grouped}`;
 }
 
-/** Signed, with an explicit `+` — the sign of `q` is the whole story. */
+/**
+ * Signed, with an explicit `+` — the sign of `q` is the whole story.
+ *
+ * @dev Zero goes through `formatTokens` like every other value rather than
+ *      being spelled out, because `0.` + `places` zeroes is `"0."` when
+ *      `places` is 0 — a trailing decimal point on the one row of a receipt
+ *      table where the position is exactly at its target.
+ */
 export function formatSigned(value: bigint | string, places = 2): string {
   const v = BigInt(value);
-  const body = formatTokens(v < 0n ? -v : v, places);
-  if (v === 0n) return `0.${"0".repeat(places)}`;
-  return `${v > 0n ? "+" : "−"}${body}`;
+  if (v === 0n) return formatTokens(0n, places);
+  return `${v > 0n ? "+" : "−"}${formatTokens(v < 0n ? -v : v, places)}`;
 }
 
 /** Basis points as a percentage. 500 bps is the penalty's ceiling. */

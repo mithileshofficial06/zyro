@@ -84,6 +84,22 @@ export interface ConsoleData {
   configured: boolean;
 }
 
+/**
+ * One position, looked up by strategy hash.
+ *
+ * @dev `position: null` with `configured: true` and no `error` is a real,
+ *      distinct state — the subgraph answered and has nothing under that id —
+ *      and it is the only one of the four that means "wrong hash, or not
+ *      indexed yet". Collapsing it into `error` would tell a reader their
+ *      endpoint is broken when it is working.
+ */
+export interface PositionData {
+  meta: IndexMeta | null;
+  position: Position | null;
+  error: string | null;
+  configured: boolean;
+}
+
 /** `ZyroLens.State`, decoded. The field names match `schema.graphql`. */
 export interface LensState {
   balanceIn: string;
@@ -121,4 +137,79 @@ export interface Deployment {
   zyroLens: string | null;
   startBlock: number;
   deployedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// The competitive routing benchmark
+// ---------------------------------------------------------------------------
+
+/**
+ * `contracts/test/fixtures/benchmark.json`, as `CompetitiveFlow.t.sol` writes
+ * it.
+ *
+ * @dev Same rule as everything above: every WAD quantity is a **string**. A
+ *      starting inventory of 100,000e18 is ~1e23, and a bare JSON number
+ *      literal that large is parsed as a float — which would round two quotes
+ *      that differ by a basis point into the same value, on the page whose
+ *      entire subject is that difference. Counts (`ticks`, `fills`) are small
+ *      and stay numbers.
+ */
+export interface BenchmarkConfig {
+  startInventoryWad: string;
+  startQuoteWad: string;
+  tickSizeWad: string;
+  tickSeconds: number;
+  ticksPerLeg: number;
+  takerToleranceBps: number;
+  targetInventoryWad: string;
+  boundWad: string;
+  gammaWad: string;
+  sigmaSqWad: string;
+  baseSpreadWad: string;
+  horizonSecs: number;
+}
+
+/** One tick: what the taker saw, what it chose, and where that left both. */
+export interface BenchmarkTick {
+  tick: number;
+  priceWad: string;
+  elapsedSecs: number;
+  sizeInWad: string;
+  fairOutWad: string;
+  minOutWad: string;
+  stockQuoteWad: string;
+  zyroQuoteWad: string;
+  routed: "stock" | "zyro" | "declined";
+  amountOutWad: string;
+  stockBalanceInWad: string;
+  zyroBalanceInWad: string;
+}
+
+export interface BenchmarkSide {
+  fills: number;
+  volumeInWad: string;
+  volumeOutWad: string;
+  maxDeviationWad: string;
+  ticksNearBound: number;
+  takerCostWad: string;
+  balanceInWad: string;
+  balanceOutWad: string;
+  /** Marked at the **exogenous** final price, never at either position's quote. */
+  valueWad: string;
+}
+
+export interface BenchmarkScenario {
+  name: string;
+  label: string;
+  path: string;
+  ticks: number;
+  declines: number;
+  stock: BenchmarkSide;
+  zyro: BenchmarkSide;
+  receipt: BenchmarkTick[];
+}
+
+export interface Benchmark {
+  config: BenchmarkConfig;
+  scenarios: BenchmarkScenario[];
 }

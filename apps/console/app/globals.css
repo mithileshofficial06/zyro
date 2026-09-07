@@ -817,3 +817,139 @@ th.num {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------------ */
+/* Sub-pages                                                                 */
+/* ------------------------------------------------------------------------ */
+
+/* The landing nav is fixed and appears only past the hero. A sub-page has no
+   hero to clear, so its bar sits in the flow — a fixed bar over a page that
+   opens directly on content covers the first thing the reader looks at. */
+.nav--static {
+  position: static;
+}
+
+.page-head {
+  padding: 56px 0 0;
+}
+
+.page-head__crumb {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--white-dim);
+  display: block;
+  margin-bottom: 14px;
+}
+
+.page-head__crumb a {
+  color: var(--maroon-lit);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Inventory gauge                                                           */
+/* ------------------------------------------------------------------------ */
+
+/* q against the soft bound, drawn as a rule with the target at its centre.
+   The numbers alone do not say whether 3,412 is close to the edge; the whole
+   point of the bound is a distance, and a distance wants a length. */
+.gauge {
+  position: relative;
+  height: 46px;
+  border: var(--border-width) solid var(--white);
+  background: var(--black-sunken);
+  overflow: hidden;
+}
+
+.gauge__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--maroon);
+}
+
+.gauge__fill--over {
+  background: var(--maroon-lit);
+}
+
+/* The centre line is the inventory target, not zero balance. Drawn over the
+   fill so the fill's own edge never reads as the target. */
+.gauge__target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--white);
+}
+
+.gauge__bound {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--white-dim);
+}
+
+.gauge__scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--white-dim);
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Receipt table                                                             */
+/* ------------------------------------------------------------------------ */
+
+/* Fifty rows is more than fits, and the interesting part is the middle —
+   where the skew starts diverting flow — so the table scrolls rather than
+   truncating to the first ten. */
+.receipt {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.receipt table {
+  margin: 0;
+}
+
+.receipt thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--black-raised);
+}
+
+/* The routed column is the outcome of every other column on the row. */
+.route {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.route--zyro {
+  color: var(--white-pure);
+  background: var(--maroon);
+  padding: 2px 7px;
+}
+
+.route--stock {
+  color: var(--white-dim);
+}
+
+.route--declined {
+  color: var(--fail);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}

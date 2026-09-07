@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import {BenchmarkSummary} from "@/components/BenchmarkSummary";
 import {Hero} from "@/components/Hero";
 import {Nav} from "@/components/Nav";
 import {CountUp, Marquee, PressPanel, Reveal, Stagger, StaggerItem} from "@/components/motion";
@@ -6,6 +9,7 @@ import {Section} from "@/components/Section";
 import {SkewTrack} from "@/components/SkewTrack";
 import {Field} from "@/components/Field";
 import {VerifyPanel} from "@/components/VerifyPanel";
+import {loadBenchmark} from "@/lib/benchmark";
 import {loadDeployment} from "@/lib/deployment";
 import {
   formatBps,
@@ -166,8 +170,36 @@ export default async function Page() {
         ) : null}
 
         <Section
+          id="benchmark"
+          index="05 / Benchmark"
+          title={
+            <>
+              Skewing costs fills.
+              <br />
+              Here is the bill.
+            </>
+          }
+          lede={
+            <>
+              An exogenous price path, a taker that quotes both positions and declines when
+              neither clears its tolerance, and both marked at a price{" "}
+              <em>neither of them quoted</em>.{" "}
+              <span className="dim">
+                Zyro can lose fills here, and in one of the four scenarios it loses money.
+                That scenario is reported rather than dropped, because a benchmark whose
+                subject never loses has not been run against the case that would falsify it.
+              </span>
+            </>
+          }
+        >
+          <Reveal>
+            <Benchmark />
+          </Reveal>
+        </Section>
+
+        <Section
           id="stack"
-          index="05 / Stack"
+          index="06 / Stack"
           title="What is running"
           lede="Three independent implementations of the same kernel, and a way to make them disagree out loud."
         >
@@ -431,7 +463,11 @@ function PositionDetail({position}: {position: Position}) {
 
       <Field
         label="strategy hash"
-        value={<span title={position.id}>{shortHex(position.id, 12, 8)}</span>}
+        value={
+          <Link href={`/position/${position.id}`} title={position.id}>
+            {shortHex(position.id, 12, 8)}
+          </Link>
+        }
         title={position.id}
       />
       <Field label="maker" value={shortHex(position.maker, 10, 6)} title={position.maker} />
@@ -564,7 +600,11 @@ function PositionsTable({positions}: {positions: Position[]}) {
               const delta = spreadBps(p.midWad, p.reservationPriceWad);
               return (
                 <tr key={p.id}>
-                  <td title={p.id}>{shortHex(p.id, 10, 6)}</td>
+                  <td>
+                    <Link href={`/position/${p.id}`} title={p.id}>
+                      {shortHex(p.id, 10, 6)}
+                    </Link>
+                  </td>
                   <td className="dim" title={p.maker}>
                     {shortHex(p.maker, 6, 4)}
                   </td>
@@ -592,14 +632,48 @@ function PositionsTable({positions}: {positions: Position[]}) {
 }
 
 // ---------------------------------------------------------------------------
-// 05 — stack
+// 05 — benchmark
+// ---------------------------------------------------------------------------
+
+/**
+ * The competitive routing benchmark, summarised.
+ *
+ * @dev Reads `contracts/test/fixtures/benchmark.json`, which
+ *      `CompetitiveFlow.t.sol` rewrites on every `forge test` and CI fails on a
+ *      diff of. The full receipt lives at `/simulate`; this is the four rows,
+ *      because the landing page is an argument and the argument needs the
+ *      result, not the working.
+ *
+ *      Renders nothing at all when the fixture is missing, rather than a
+ *      placeholder. There is no honest thing to put in a benchmark's place.
+ */
+function Benchmark() {
+  const benchmark = loadBenchmark();
+  if (!benchmark) return null;
+
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <h2>Four scenarios</h2>
+        <Link className="btn" href="/simulate">
+          full receipt
+        </Link>
+      </div>
+
+      <BenchmarkSummary scenarios={benchmark.scenarios} />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 06 — stack
 // ---------------------------------------------------------------------------
 
 const IMPLEMENTATIONS = [
   {
     name: "AvellanedaStoikov.sol",
     role: "Prices real swaps",
-    detail: "The instruction. 95 Foundry tests, including exhaustive quote/swap parity fuzzing."
+    detail: "The instruction. 106 Foundry tests, including exhaustive quote/swap parity fuzzing."
   },
   {
     name: "packages/strategy-sdk",
@@ -766,8 +840,11 @@ function Footer({deployment}: {deployment: ReturnType<typeof loadDeployment>}) {
         </div>
 
         <div>
-          <span className="label">Repository</span>
+          <span className="label">Pages</span>
           <ul className="footer__list">
+            <li>
+              <Link href="/simulate">benchmark receipt →</Link>
+            </li>
             <li>
               <a href="https://github.com/mithileshofficial06/zyro" target="_blank" rel="noreferrer">
                 github ↗

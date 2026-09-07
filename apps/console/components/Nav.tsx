@@ -23,7 +23,8 @@ const SECTIONS = [
   {id: "live", index: "02", label: "Live"},
   {id: "proof", index: "03", label: "Proof"},
   {id: "fills", index: "04", label: "Settlement"},
-  {id: "stack", index: "05", label: "Stack"}
+  {id: "benchmark", index: "05", label: "Benchmark"},
+  {id: "stack", index: "06", label: "Stack"}
 ];
 
 export function Nav() {
