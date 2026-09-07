@@ -3,6 +3,13 @@
 Every step that needs a credential is marked **[needs a key]**. Everything else
 is already runnable and already checked in CI.
 
+**This has been run.** Steps 1 through 5 are done and the results are in
+[`deployments/base-sepolia.json`](../deployments/base-sepolia.json) and the
+README's status table; the subgraph is at
+`https://api.studio.thegraph.com/query/1758820/zyro/v0.0.2` and
+`verify-subgraph.mjs` passes against it. What follows is how to reproduce it,
+and steps 6 and 7 are still outstanding.
+
 The Graph's bar is stricter than 1inch's here. 1inch accepts a local fork; a
 subgraph indexes a public chain, and Studio cannot index anvil. So the Base
 Sepolia deployment is not a nice-to-have on this track — it is the first
@@ -100,8 +107,19 @@ npx graph auth <deploy key from Studio>
 
 npm run codegen
 npm run build
-npx graph deploy zyro
+npx graph deploy zyro --version-label v0.0.1
 ```
+
+Pass `--version-label` or the CLI prompts for one, which a non-interactive
+shell cannot answer.
+
+**Do not run `graph init`.** The Studio quickstart tells you to, and it
+scaffolds a fresh subgraph into a new directory — the mappings, the matchstick
+suite and this manifest are already here, and `graph init` would leave you
+deploying an empty scaffold that indexes nothing. For the same reason, do not
+`yarn global add @graphprotocol/graph-cli`: `graph-cli` 0.97.1 is already in
+`subgraph/node_modules` and this runbook is written against its exact command
+forms.
 
 No `--network` flag needed: step 3 wrote the addresses into `subgraph.yaml`
 directly. That is deliberate — `graph build --network <name>` substitutes them
@@ -139,6 +157,20 @@ Read [docs/EVENT-ORDER.md](EVENT-ORDER.md) before trusting a green result you
 did not expect. This repository shipped two bugs that produced a perfectly
 healthy subgraph returning wrong data, and neither was visible without this
 comparison.
+
+### If only the time-dependent fields disagree
+
+`reservationPriceWad`, `halfSpreadWad` and `horizonRemainingSecs` failing while
+balances, `q`, `midWad` and `penaltyBps` all pass is the signature of a **block
+mismatch, not a kernel bug**. Those three decay continuously; the other four do
+not. The verifier pins its `eth_call` to `position.lastUpdatedBlock` — the block
+whose handler wrote the snapshot — precisely so this cannot happen, and it
+prints that block and how far behind the index head it is.
+
+This bit the first live run: the checker pinned to the index head, which was
+630 blocks past the last fill, and reported those exact three fields as
+failures against a subgraph that was entirely correct. On anvil the two blocks
+coincide, so no test could have caught it.
 
 ### If it reports zero positions
 

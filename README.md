@@ -39,8 +39,22 @@ Not *"we invented inventory-aware market making."* The honest claim:
 
 ## Status
 
-Everything that can be built without a funded key is built and tested. The
-remaining work is a deployment — see [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+Deployed, indexed and verified on Base Sepolia. See
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md) to reproduce it.
+
+| | |
+|---|---|
+| Aqua | [`0x12e969058658dAF7B4c0Ff495A2779c0A44B82Ef`](https://sepolia.basescan.org/address/0x12e969058658daf7b4c0ff495a2779c0a44b82ef) |
+| `ZyroRouter` | [`0x915900cCC5409bEb4D11B2c4bD4C7f94B2648335`](https://sepolia.basescan.org/address/0x915900ccc5409beb4d11b2c4bd4c7f94b2648335) |
+| `ZyroLens` | [`0x2d8C5Ae05B5E55bDDe3f9b81D2701B5DF8cDaA43`](https://sepolia.basescan.org/address/0x2d8c5ae05b5e55bdde3f9b81d2701b5df8cdaa43) |
+| Subgraph | `https://api.studio.thegraph.com/query/1758820/zyro/v0.0.2` |
+| Position | `0x6f8828bc8d4056e40e167ac2b65f84479dd5d6b3d386e98858530f6ac0dc6442` |
+
+One position shipped at its inventory target and walked to its soft bound by
+ten same-direction fills, each in its own block. `q` ends at exactly +500,
+the penalty fully ramped at 500 bps, and the reservation price 594 bps below
+the mid. `scripts/verify-subgraph.mjs` reports every field agreeing across
+all three implementations.
 
 | Phase | Component | State |
 |---|---|---|
@@ -48,12 +62,12 @@ remaining work is a deployment — see [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 | 1 | Pricing kernel + fuzz suite | done |
 | 2 | Read `swap-vm` source | done |
 | 3 | Instruction + append-only router + quote/swap parity | done |
-| 4 | Ship & swap on Base Sepolia | scripted; **needs a funded key** |
+| 4 | Ship & swap on Base Sepolia | **done** — 18 txs, 10 fills in 10 blocks |
 | 5 | TypeScript SDK, byte-verified against Solidity fixtures | done |
-| 6 | Subgraph + Subgraph MCP | mappings done and tested; **needs a deployment** |
+| 6 | Subgraph + Subgraph MCP | subgraph **deployed and verified**; MCP needs a Gateway key |
 | 7 | Uniswap v4 hook | done; deploy script mines the address, **needs a key to run** |
 | 8 | Competitive routing simulation | done — generated into `contracts/test/fixtures/benchmark.json` |
-| 9 | Console | done |
+| 9 | Console | done — landing, `/simulate`, `/position/[hash]` |
 | 10 | Sponsor feedback | done — [FEEDBACK/](FEEDBACK/) |
 
 `forge test` runs 106 tests, `npm test` runs 125, and CI additionally runs the
@@ -73,6 +87,18 @@ Neither threw. Neither failed a health check. Both came from assuming an event
 order rather than reading it — see [`docs/EVENT-ORDER.md`](docs/EVENT-ORDER.md),
 which closes the last open ⚠ VERIFY in the build spec against the vendored
 source.
+
+The third bug was in the checker rather than the mappings, and only a real
+deployment could have surfaced it. `verify-subgraph.mjs` knew not to call the
+chain at chainhead — a lagging subgraph would look like a bug — so it pinned
+to the block the index had reached. That is still wrong: a subgraph recomputes
+only when an event touches a position, so the reservation price, the half
+spread and the remaining horizon are snapshots taken at the last fill and
+decay continuously afterwards. Pinned to the index head, a correct subgraph
+fails by more the longer nothing trades. On anvil the two blocks are the same
+block, which is why it survived every test. `Position.lastUpdatedBlock` now
+publishes which block the snapshot belongs to, and both the verifier and the
+console pin to that.
 
 So there are now three independent implementations of the same kernel and a way
 to make them disagree out loud:
