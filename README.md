@@ -64,7 +64,7 @@ all three implementations.
 | 3 | Instruction + append-only router + quote/swap parity | done |
 | 4 | Ship & swap on Base Sepolia | **done** — 18 txs, 10 fills in 10 blocks |
 | 5 | TypeScript SDK, byte-verified against Solidity fixtures | done |
-| 6 | Subgraph + Subgraph MCP | subgraph **deployed and verified**; MCP needs a Gateway key |
+| 6 | Subgraph + Subgraph MCP | subgraph **deployed and verified**; MCP needs the subgraph *published* (Arbitrum tx) |
 | 7 | Uniswap v4 hook | done; deploy script mines the address, **needs a key to run** |
 | 8 | Competitive routing simulation | done — generated into `contracts/test/fixtures/benchmark.json` |
 | 9 | Console | done — landing, `/simulate`, `/position/[hash]` |

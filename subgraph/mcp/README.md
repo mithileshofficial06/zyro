@@ -30,16 +30,50 @@ claude mcp add-json subgraph "$(cat subgraph/mcp/mcp.config.json | jq -c '.mcpSe
 …or paste the file's contents into the `mcpServers` block of whichever client
 you are using.
 
-## The deployment id
+## `graph deploy` is not enough — the subgraph has to be published
 
-The server addresses subgraphs by id. After `graph deploy`, Studio shows both a
-**subgraph id** (stable across versions) and a **deployment id** (the `Qm…`
-hash of one specific published version).
+**This is the step that catches people, and it fails silently.** The MCP server
+queries The Graph Network through the gateway, and the gateway routes to
+Indexers. An Indexer only picks a subgraph up once it has been **published to
+the decentralised network** — a transaction on Arbitrum One, from the Publish
+button on the subgraph's Studio page.
+
+A subgraph that has only been `graph deploy`d is queryable at its Studio
+endpoint and nowhere else. Point an agent at it and the gateway answers **HTTP
+200** with `{"errors":[{"message":"subgraph not found: Qm…"}]}` — which looks
+exactly like a wrong id or a bad key, and is neither.
+
+Run the check rather than guessing which of the three it is:
+
+```bash
+THEGRAPH_GATEWAY_API_KEY=... ZYRO_SUBGRAPH_DEPLOYMENT_ID=Qm...   node subgraph/mcp/check.mjs
+```
+
+It tests the key against a subgraph known to be published, decodes the
+deployment id, and only then tries yours — so a failure names one cause
+instead of three. Nothing else in this repository needs publishing: the
+console and `scripts/verify-subgraph.mjs` run against the Studio endpoint.
+
+## The deployment id, and its two forms
+
+After `graph deploy`, Studio shows both a **subgraph id** (stable across
+versions) and a **deployment id** (the hash of one specific version).
 
 Prefer the **deployment id** for anything being demonstrated. A subgraph id
 resolves to whatever version is current, so a redeploy silently changes what an
 agent is querying; a deployment id is pinned to the exact mappings that were
 verified.
+
+It has two encodings of the same hash, and they are not interchangeable at the
+call site:
+
+| | |
+|---|---|
+| `Qm…`, 46 chars | CIDv0, base58. What `graph deploy` prints and Studio shows. |
+| `0x…`, 66 chars | The same 32-byte sha2-256 digest, hex. What the MCP tools' *by deployment id* calls take. |
+
+Handing a tool the wrong one reads as "not found", not as a format error.
+`check.mjs` prints the conversion.
 
 Record it in the environment alongside the key:
 
@@ -96,6 +130,8 @@ SUBGRAPH_URL=<query endpoint> BASE_SEPOLIA_RPC_URL=<rpc> \
 ```
 
 which compares every published field against `ZyroLens` on-chain at the block
-the index has reached. See [docs/EVENT-ORDER.md](../../docs/EVENT-ORDER.md) for
-two bugs this repository shipped that produced a perfectly healthy subgraph
-returning wrong data — both invisible without exactly that comparison.
+each position's numbers were computed at — `lastUpdatedBlock`, not chainhead
+and not the index head. See [docs/EVENT-ORDER.md](../../docs/EVENT-ORDER.md)
+for two bugs this repository shipped that produced a perfectly healthy subgraph
+returning wrong data, and the README for a third that lived in the checker
+itself.
